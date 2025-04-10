@@ -377,6 +377,68 @@ namespace WoWServerManager
             }
         }
 
+        // Add these methods to the MainViewModel class
+        private void AddCharacter()
+        {
+            if (SelectedAccount == null) return;
+
+            var dialog = new CharacterDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                // Set the reference to the parent account
+                dialog.Character.Account = SelectedAccount;
+
+                SelectedAccount.Characters.Add(dialog.Character);
+                SelectedCharacter = dialog.Character;
+                SaveConfig();
+            }
+        }
+
+        private void EditCharacter()
+        {
+            if (SelectedCharacter == null) return;
+
+            var dialog = new CharacterDialog(SelectedCharacter);
+            if (dialog.ShowDialog() == true)
+            {
+                // Only update the properties, not replace the entire Character object
+                SelectedCharacter.Name = dialog.Character.Name;
+                SelectedCharacter.Realm = dialog.Character.Realm;
+                SelectedCharacter.Class = dialog.Character.Class;
+                SelectedCharacter.Level = dialog.Character.Level;
+
+                // Notify UI of changes
+                OnPropertyChanged(nameof(Characters));
+                SaveConfig();
+            }
+        }
+
+        private void RemoveCharacter()
+        {
+            if (SelectedCharacter == null) return;
+
+            var result = MessageBox.Show(
+                $"Are you sure you want to remove the character '{SelectedCharacter.Name}'?",
+                "Confirm Removal",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SelectedAccount.Characters.Remove(SelectedCharacter);
+                SelectedCharacter = SelectedAccount.Characters.FirstOrDefault();
+                SaveConfig();
+            }
+        }
+
+        // Add the PropertyChanged event and OnPropertyChanged method
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         private async void AddServerWithGuidedSetup()
         {
             // Step 1: Add Server
