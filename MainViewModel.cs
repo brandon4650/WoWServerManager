@@ -22,6 +22,13 @@ using Tesseract;
 using Point = System.Drawing.Point; // Resolves Point ambiguity
 using ImageFormat = System.Drawing.Imaging.ImageFormat; // Resolves ImageFormat ambiguity
 
+// EmguCV namespaces
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using DrawingSize = System.Drawing.Size;
+
 namespace WoWServerManager
 {
     public class MainViewModel : INotifyPropertyChanged
@@ -583,9 +590,11 @@ namespace WoWServerManager
 
         private async Task SelectCharacterByName(string characterName)
         {
-            const int maxAttempts = 12;
-            const double highConfidenceThreshold = 0.90;
-            const double mediumConfidenceThreshold = 0.75;
+            const int maxAttempts = 15;          // Increased attempts for better chance of finding
+            const double highConfidenceThreshold = 0.85;
+            const double mediumConfidenceThreshold = 0.65;
+            const int initialDelay = 1500;       // Longer initial delay to ensure character screen is loaded
+            const int navigationDelay = 600;     // Delay between navigation key presses
 
             if (SelectedAccount?.SelectedCharacter == null)
             {
@@ -596,6 +605,9 @@ namespace WoWServerManager
             Character target = SelectedAccount.SelectedCharacter;
             Console.WriteLine($"Searching for: {target.Name} (Lvl {target.Level} {target.Class})");
 
+            // Potential improvement: Wait for actual character selection screen to appear using image recognition
+            await Task.Delay(initialDelay);
+
             // Go to top of character list
             SendKeys.SendWait("{HOME}");
             await Task.Delay(1200);
@@ -604,26 +616,50 @@ namespace WoWServerManager
             double bestScore = 0;
             int bestPosition = -1;
             string bestMatchText = "";
+            List<(int position, double score, string text)> matches = new List<(int, double, string)>();
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                string ocrText = CaptureScreenText();
-                double score = CalculateCharacterMatchScore(ocrText, target);
+                // Take multiple samples at each position for better accuracy
+                double positionScore = 0;
+                string combinedText = "";
 
-                Console.WriteLine($"Pos {attempt}: Score {score:F2}\nText: {ocrText}");
+                // Take 2 samples at each position to improve reliability
+                for (int sample = 0; sample < 2; sample++)
+                {
+                    string ocrText = CaptureScreenText();
+                    double score = CalculateCharacterMatchScore(ocrText, target);
+
+                    positionScore = Math.Max(positionScore, score);
+                    if (!string.IsNullOrWhiteSpace(ocrText))
+                    {
+                        combinedText += ocrText + " ";
+                    }
+
+                    // Brief delay between samples
+                    await Task.Delay(200);
+                }
+
+                // Trim any extra whitespace
+                combinedText = combinedText.Trim();
+
+                Console.WriteLine($"Pos {attempt}: Score {positionScore:F2}\nText: {combinedText}");
+
+                // Add to matches list
+                matches.Add((attempt, positionScore, combinedText));
 
                 // Update best match
-                if (score > bestScore)
+                if (positionScore > bestScore)
                 {
-                    bestScore = score;
+                    bestScore = positionScore;
                     bestPosition = attempt;
-                    bestMatchText = ocrText;
+                    bestMatchText = combinedText;
                 }
 
                 // High confidence - select immediately
-                if (score >= highConfidenceThreshold)
+                if (positionScore >= highConfidenceThreshold)
                 {
-                    Console.WriteLine($"Exact match found - selecting");
+                    Console.WriteLine($"Exact match found at position {attempt} - selecting");
                     SendKeys.SendWait("{ENTER}");
                     await Task.Delay(1000);
                     return;
@@ -631,7 +667,27 @@ namespace WoWServerManager
 
                 // Move to next character
                 SendKeys.SendWait("{DOWN}");
-                await Task.Delay(600);
+                await Task.Delay(navigationDelay);
+            }
+
+            // Log debug information for troubleshooting
+            LogCharacterSelectionDebug(target, matches);
+
+            // Analyze all matches for best candidate
+            var sortedMatches = matches.OrderByDescending(m => m.score).ToList();
+
+            // Check if we have multiple good candidates
+            if (sortedMatches.Count >= 2 &&
+                sortedMatches[0].score >= mediumConfidenceThreshold &&
+                sortedMatches[1].score >= mediumConfidenceThreshold * 0.9)
+            {
+                // If the top two candidates are close in score, prefer the one with class and level match
+                if (TryScoringClassAndLevel(sortedMatches[0].text, sortedMatches[1].text, target, out int betterPosition))
+                {
+                    bestPosition = betterPosition == 0 ? sortedMatches[0].position : sortedMatches[1].position;
+                    bestScore = betterPosition == 0 ? sortedMatches[0].score : sortedMatches[1].score;
+                    bestMatchText = betterPosition == 0 ? sortedMatches[0].text : sortedMatches[1].text;
+                }
             }
 
             // Fallback to best match if reasonable
@@ -661,62 +717,35 @@ namespace WoWServerManager
             SendKeys.SendWait("{ENTER}");
         }
 
-        private double CalculateCharacterMatchScore(string screenText, Character character)
+        // Helper method to determine the better match when considering class and level
+        private bool TryScoringClassAndLevel(string text1, string text2, Character target, out int betterPosition)
         {
-            if (string.IsNullOrWhiteSpace(screenText)) return 0;
+            betterPosition = 0; // Default to first option
 
-            double score = 0;
-            string lowerText = screenText.ToLower();
-            string targetName = character.Name.ToLower();
-            string targetClass = character.Class.ToLower();
+            if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
+                return false;
 
-            // Name matching (more strict)
-            if (lowerText.Contains(targetName))
+            bool text1HasClass = !string.IsNullOrEmpty(target.Class) &&
+                                text1.ToLower().Contains(target.Class.ToLower());
+            bool text2HasClass = !string.IsNullOrEmpty(target.Class) &&
+                                text2.ToLower().Contains(target.Class.ToLower());
+
+            bool text1HasLevel = text1.Contains($"Level {target.Level}") ||
+                                text1.Contains($"Lvl {target.Level}");
+            bool text2HasLevel = text2.Contains($"Level {target.Level}") ||
+                                text2.Contains($"Lvl {target.Level}");
+
+            // Calculate a simple score based on class and level matches
+            int score1 = (text1HasClass ? 2 : 0) + (text1HasLevel ? 1 : 0);
+            int score2 = (text2HasClass ? 2 : 0) + (text2HasLevel ? 1 : 0);
+
+            if (score1 != score2)
             {
-                score += 0.7; // Strong match for exact name
-            }
-            else
-            {
-                // Try fuzzy matching for name
-                foreach (var part in character.Name.Split(' '))
-                {
-                    if (part.Length > 4 && lowerText.Contains(part.ToLower()))
-                    {
-                        score += 0.3; // Partial credit for name part
-                        break;
-                    }
-                }
-            }
-
-            // Class matching (more strict)
-            if (!string.IsNullOrWhiteSpace(character.Class))
-            {
-                if (lowerText.Contains(targetClass))
-                {
-                    score += 0.2;
-                }
-                else
-                {
-                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
-                    string classAbbrev = character.Class.Length > 3
-                        ? character.Class.Substring(0, 3).ToLower()
-                        : character.Class.ToLower();
-
-                    if (lowerText.Contains(classAbbrev))
-                    {
-                        score += 0.1;
-                    }
-                }
+                betterPosition = score1 > score2 ? 0 : 1;
+                return true;
             }
 
-            // Level matching (exact only)
-            if (lowerText.Contains($"level {character.Level}") ||
-                lowerText.Contains($"lvl {character.Level}"))
-            {
-                score += 0.1;
-            }
-
-            return Math.Min(score, 1.0);
+            return false;
         }
 
         private string CaptureScreenText()
@@ -755,22 +784,24 @@ namespace WoWServerManager
                     using (Graphics g = Graphics.FromImage(bitmap))
                     {
                         g.CopyFromScreen(
-                            new System.Drawing.Point(captureBounds.Left, captureBounds.Top), // Fixed: Fully qualified Point
-                            System.Drawing.Point.Empty, // Fixed: Fully qualified Point
+                            new Point(captureBounds.Left, captureBounds.Top),
+                            Point.Empty,
                             captureBounds.Size);
                     }
 
                     // Save the screenshot for debugging
-                    bitmap.Save(debugImagePath, System.Drawing.Imaging.ImageFormat.Png); // Fixed: Fully qualified ImageFormat
+                    bitmap.Save(debugImagePath, ImageFormat.Png);
 
-
-                    // Pre-process image for better OCR
-                    using (Bitmap processedBitmap = PreprocessImageForOCR(bitmap))
+                    // Convert to EmguCV Image format
+                    using (Image<Bgr, byte> emguImage = bitmap.ToImage<Bgr>())
                     {
-                        string processedImagePath = Path.Combine(debugDirectory, $"ocr_processed_{timestamp}.png");
-                        processedBitmap.Save(processedImagePath, System.Drawing.Imaging.ImageFormat.Png); // Fixed: Fully qualified ImageFormat
+                        // Process image with EmguCV for better OCR results
+                        var processedImage = PreprocessImageWithEmguCV(emguImage);
 
-                        // Perform OCR
+                        string processedImagePath = Path.Combine(debugDirectory, $"ocr_processed_{timestamp}.png");
+                        processedImage.Save(processedImagePath);
+
+                        // Perform OCR with Tesseract
                         string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
                         string result = "";
 
@@ -778,16 +809,17 @@ namespace WoWServerManager
                         {
                             using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
                             {
-                                // Optimize OCR settings for game text
+                                // Configure Tesseract for game text
                                 engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
                                 engine.SetVariable("tessedit_pageseg_mode", "6"); // Assume a single uniform block of text
                                 engine.SetVariable("tessedit_ocr_engine_mode", "2"); // LSTM only
 
-                                using (var img = Pix.LoadFromMemory(ImageToByteArray(processedBitmap)))
+                                // Convert EmguCV image to a format Tesseract can use
+                                using (var img = ConvertEmguCvImageToPix(processedImage))
                                 {
                                     using (var page = engine.Process(img, PageSegMode.SingleBlock))
                                     {
-                                        result = page.GetText();
+                                        result = page.GetText().Trim();
                                         File.WriteAllText(debugTextPath, result); // Save OCR result
                                     }
                                 }
@@ -818,58 +850,280 @@ namespace WoWServerManager
             }
         }
 
-        private Bitmap PreprocessImageForOCR(Bitmap original)
+        // Convert EmguCV Image to Pix format for Tesseract
+        private Pix ConvertEmguCvImageToPix(Image<Gray, byte> image)
         {
-            // Convert to grayscale
-            Bitmap grayscale = new Bitmap(original.Width, original.Height);
-            using (Graphics g = Graphics.FromImage(grayscale))
+            // First, ensure we're working with the right image format
+            using (var bitmap = image.ToBitmap())
             {
-                ColorMatrix colorMatrix = new ColorMatrix(
-                    new float[][]
-                    {
-                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
-                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
-                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
-                new float[] {0, 0, 0, 1, 0},
-                new float[] {0, 0, 0, 0, 1}
-                    });
-
-                using (ImageAttributes attributes = new ImageAttributes())
-                {
-                    attributes.SetColorMatrix(colorMatrix);
-                    g.DrawImage(original, new Rectangle(0, 0, original.Width, original.Height),
-                        0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
-                }
+                return Pix.LoadFromMemory(ImageToByteArray(bitmap));
             }
-
-            // Increase contrast
-            Bitmap highContrast = new Bitmap(grayscale.Width, grayscale.Height);
-            using (Graphics g = Graphics.FromImage(highContrast))
-            {
-                float contrast = 2.0f; // 2.0 seems to work well for game text
-                float offset = -0.5f * contrast + 0.5f;
-
-                ColorMatrix colorMatrix = new ColorMatrix(new float[][]
-                {
-            new float[] {contrast, 0, 0, 0, 0},
-            new float[] {0, contrast, 0, 0, 0},
-            new float[] {0, 0, contrast, 0, 0},
-            new float[] {0, 0, 0, 1, 0},
-            new float[] {offset, offset, offset, 0, 1}
-                });
-
-                using (ImageAttributes attributes = new ImageAttributes())
-                {
-                    attributes.SetColorMatrix(colorMatrix);
-                    g.DrawImage(grayscale, new Rectangle(0, 0, grayscale.Width, grayscale.Height),
-                        0, 0, grayscale.Width, grayscale.Height, GraphicsUnit.Pixel, attributes);
-                }
-            }
-
-            grayscale.Dispose();
-            return highContrast;
         }
 
+        // Enhanced image preprocessing with EmguCV
+        private Image<Gray, byte> PreprocessImageWithEmguCV(Image<Bgr, byte> originalImage)
+        {
+            // 1. Convert to grayscale
+            Image<Gray, byte> grayImage = originalImage.Convert<Gray, byte>();
+
+            // 2. Adaptive thresholding - works better for text with varying backgrounds
+            Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
+            CvInvoke.AdaptiveThreshold(
+                grayImage,
+                thresholdImage,
+                255.0,
+                AdaptiveThresholdType.GaussianC,
+                ThresholdType.Binary,
+                11, // Block size
+                5   // C value
+            );
+
+            // 3. Apply morphological operations to clean up the image
+            var element = CvInvoke.GetStructuringElement(ElementShape.Rectangle,
+                                                      new DrawingSize(3, 3),
+                                                      new Point(-1, -1));
+
+            // Opening operation (erosion followed by dilation) to remove noise
+            CvInvoke.MorphologyEx(thresholdImage, thresholdImage, MorphOp.Open, element,
+                                 new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+
+            // 4. Apply Gaussian blur to smooth out edges
+            CvInvoke.GaussianBlur(thresholdImage, thresholdImage, new DrawingSize(3, 3), 0);
+
+            // 5. Apply contrast enhancement
+            Image<Gray, byte> enhancedImage = thresholdImage.Clone();
+
+            // Optional: Apply contrast stretching
+            // This helps when characters have low contrast against background
+            double min = 0, max = 255;
+            Point minLoc = new Point(), maxLoc = new Point();
+            CvInvoke.MinMaxLoc(enhancedImage, ref min, ref max, ref minLoc, ref maxLoc);
+
+            if (max > min) // Avoid division by zero
+            {
+                // Normalize the image to improve contrast
+                CvInvoke.Normalize(enhancedImage, enhancedImage, 0, 255, NormType.MinMax);
+            }
+
+            return enhancedImage;
+        }
+
+        // Improved character matching logic
+        private double CalculateCharacterMatchScore(string screenText, Character character)
+        {
+            if (string.IsNullOrWhiteSpace(screenText)) return 0;
+
+            double score = 0;
+            string lowerText = screenText.ToLower();
+            string targetName = character.Name.ToLower();
+            string targetClass = character.Class?.ToLower() ?? "";
+
+            // Name matching (more strict) - use improved fuzzy matching
+            if (lowerText.Contains(targetName))
+            {
+                score += 0.7; // Strong match for exact name
+            }
+            else
+            {
+                // Try fuzzy matching for name
+                double nameScore = CalculateFuzzyMatchScore(lowerText, targetName);
+                score += nameScore * 0.5; // Weight partial matches
+            }
+
+            // Class matching (more strict)
+            if (!string.IsNullOrWhiteSpace(character.Class))
+            {
+                if (lowerText.Contains(targetClass))
+                {
+                    score += 0.2;
+                }
+                else
+                {
+                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
+                    string classAbbrev = character.Class.Length > 3
+                        ? character.Class.Substring(0, 3).ToLower()
+                        : character.Class.ToLower();
+
+                    if (lowerText.Contains(classAbbrev))
+                    {
+                        score += 0.1;
+                    }
+                }
+            }
+
+            // Level matching (with various formats)
+            string[] levelPatterns = {
+                $"level {character.Level}",
+                $"lvl {character.Level}",
+                $"lvl{character.Level}",
+                $"level{character.Level}",
+                $"lv {character.Level}",
+                $"lv{character.Level}",
+                $"{character.Level}"
+            };
+
+            foreach (var pattern in levelPatterns)
+            {
+                if (lowerText.Contains(pattern))
+                {
+                    score += 0.15;
+                    break;
+                }
+            }
+
+            return Math.Min(score, 1.0);
+        }
+
+        // Add this new method for fuzzy string matching
+        private double CalculateFuzzyMatchScore(string source, string target)
+        {
+            // Handle empty strings
+            if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target))
+                return 0.0;
+
+            // Normalize strings to lowercase
+            source = source.ToLower();
+            target = target.ToLower();
+
+            // Check if target parts are in source
+            string[] targetParts = target.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            int matchedParts = 0;
+
+            foreach (string part in targetParts)
+            {
+                if (part.Length >= 3 && source.Contains(part))
+                {
+                    matchedParts++;
+                }
+            }
+
+            if (targetParts.Length > 0)
+            {
+                return (double)matchedParts / targetParts.Length;
+            }
+
+            // Fallback: Calculate edit distance ratio
+            int maxLength = Math.Max(source.Length, target.Length);
+            if (maxLength == 0) return 1.0; // Both strings are empty
+
+            int editDistance = LevenshteinDistance(source, target);
+            return 1.0 - ((double)editDistance / maxLength);
+        }
+
+        // Add this helper method for calculating edit distance
+        private int LevenshteinDistance(string s, string t)
+        {
+            // Special case: empty strings
+            if (string.IsNullOrEmpty(s))
+            {
+                return string.IsNullOrEmpty(t) ? 0 : t.Length;
+            }
+
+            if (string.IsNullOrEmpty(t))
+            {
+                return s.Length;
+            }
+
+            // Create distance matrix
+            int[,] distance = new int[s.Length + 1, t.Length + 1];
+
+            // Initialize first column and first row
+            for (int i = 0; i <= s.Length; i++)
+            {
+                distance[i, 0] = i;
+            }
+
+            for (int j = 0; j <= t.Length; j++)
+            {
+                distance[0, j] = j;
+            }
+
+            // Calculate edit distance
+            for (int i = 1; i <= s.Length; i++)
+            {
+                for (int j = 1; j <= t.Length; j++)
+                {
+                    int cost = (t[j - 1] == s[i - 1]) ? 0 : 1;
+                    distance[i, j] = Math.Min(
+                        Math.Min(distance[i - 1, j] + 1, distance[i, j - 1] + 1),
+                        distance[i - 1, j - 1] + cost);
+                }
+            }
+
+            return distance[s.Length, t.Length];
+        }
+
+        // Method to save debug information about character selection
+        private void LogCharacterSelectionDebug(Character character, List<(int position, double score, string text)> matches)
+        {
+            try
+            {
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
+                if (!Directory.Exists(debugDir))
+                    Directory.CreateDirectory(debugDir);
+
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string logPath = Path.Combine(debugDir, $"character_selection_log_{timestamp}.txt");
+
+                using (StreamWriter writer = new StreamWriter(logPath))
+                {
+                    writer.WriteLine($"Character Selection Debug - {DateTime.Now}");
+                    writer.WriteLine($"------------------------------------------");
+                    writer.WriteLine($"Searching for: {character.Name}");
+                    writer.WriteLine($"Level: {character.Level}");
+                    writer.WriteLine($"Class: {character.Class}");
+                    writer.WriteLine($"Realm: {character.Realm}");
+                    writer.WriteLine($"------------------------------------------");
+                    writer.WriteLine("Matches:");
+
+                    foreach (var match in matches.OrderByDescending(m => m.score))
+                    {
+                        writer.WriteLine($"Position: {match.position}, Score: {match.score:F3}");
+                        writer.WriteLine($"Text: \"{match.text}\"");
+                        writer.WriteLine();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error writing debug log: {ex.Message}");
+            }
+        }
+
+        // Method to extract screenshots from WoW client for testing
+        public void CaptureCharacterScreenForTesting()
+        {
+            try
+            {
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Testing");
+                if (!Directory.Exists(debugDir))
+                    Directory.CreateDirectory(debugDir);
+
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string imagePath = Path.Combine(debugDir, $"character_screen_{timestamp}.png");
+
+                // Capture the full screen
+                Rectangle bounds = Screen.PrimaryScreen.Bounds;
+                using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height))
+                {
+                    using (Graphics g = Graphics.FromImage(bitmap))
+                    {
+                        g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
+                    }
+                    bitmap.Save(imagePath, ImageFormat.Png);
+                }
+
+                MessageBox.Show($"Screen capture saved to:\n{imagePath}", "Screen Capture",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error capturing screen: {ex.Message}", "Error",
+                               MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Keep the existing ImageToByteArray method
         private byte[] ImageToByteArray(Image image)
         {
             using (MemoryStream ms = new MemoryStream())
@@ -879,9 +1133,154 @@ namespace WoWServerManager
             }
         }
 
+        // Method to test OCR on an existing image file
+        public string TestOcrOnImage(string imagePath)
+        {
+            try
+            {
+                if (!File.Exists(imagePath))
+                {
+                    return "File not found!";
+                }
 
+                // Load image with EmguCV
+                using (Image<Bgr, byte> image = new Image<Bgr, byte>(imagePath))
+                {
+                    // Process with same pipeline as real OCR
+                    var processedImage = PreprocessImageWithEmguCV(image);
 
+                    // Save processed image for debugging
+                    string processedPath = Path.Combine(
+                        Path.GetDirectoryName(imagePath),
+                        Path.GetFileNameWithoutExtension(imagePath) + "_processed.png");
+                    processedImage.Save(processedPath);
 
+                    // Perform OCR
+                    string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                    using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                    {
+                        engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
+                        engine.SetVariable("tessedit_pageseg_mode", "6");
+                        engine.SetVariable("tessedit_ocr_engine_mode", "2");
+
+                        using (var img = ConvertEmguCvImageToPix(processedImage))
+                        {
+                            using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                            {
+                                return page.GetText().Trim();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        // Add a method for automatic tuning of OCR parameters
+        private void OptimizeOcrParameters()
+        {
+            // This can be called during setup or from a separate "Calibrate OCR" button
+            MessageBox.Show("Please make sure your WoW client is open and on the character selection screen.",
+                            "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
+            if (!Directory.Exists(debugDir))
+                Directory.CreateDirectory(debugDir);
+
+            // First, capture the current screen
+            CaptureCharacterScreenForTesting();
+
+            // Offer to run OCR tests with different parameters
+            var result = MessageBox.Show("Would you like to test OCR with different parameters?",
+                                       "OCR Calibration", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Sample a few different configurations and log results
+                // This is a simplified example - in practice, you'd iterate through more parameter combinations
+                TestOcrWithParameters(11, 5);  // Default params
+                TestOcrWithParameters(9, 3);   // Less aggressive
+                TestOcrWithParameters(15, 7);  // More aggressive
+
+                MessageBox.Show("OCR calibration complete. Check the OCR_Debug/Calibration folder for results.",
+                              "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void TestOcrWithParameters(int blockSize, int cValue)
+        {
+            try
+            {
+                // Get screen bounds (focus on right side where character list appears)
+                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
+                int captureWidth = (int)(screenBounds.Width * 0.3);
+                int captureHeight = (int)(screenBounds.Height * 0.7);
+                int captureX = screenBounds.Width - captureWidth;
+                int captureY = (int)(screenBounds.Height * 0.15);
+                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
+
+                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
+                {
+                    using (Graphics g = Graphics.FromImage(bitmap))
+                    {
+                        g.CopyFromScreen(
+                            new System.Drawing.Point(captureBounds.Left, captureBounds.Top),
+                            System.Drawing.Point.Empty,
+                            captureBounds.Size);
+                    }
+
+                    // Convert to EmguCV Image
+                    using (Image<Bgr, byte> emguImage = bitmap.ToImage<Bgr, byte>())
+                    {
+                        // Convert to grayscale
+                        Image<Gray, byte> grayImage = emguImage.Convert<Gray, byte>();
+
+                        // Apply custom parameters
+                        var thresholdImage = new Image<Gray, byte>(grayImage.Size);
+                        CvInvoke.AdaptiveThreshold(
+                            grayImage,
+                            thresholdImage,
+                            255.0,
+                            AdaptiveThresholdType.GaussianC,
+                            ThresholdType.Binary,
+                            blockSize,
+                            cValue
+                        );
+
+                        string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
+                        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        string imagePath = Path.Combine(debugDir, $"params_b{blockSize}_c{cValue}_{timestamp}.png");
+                        thresholdImage.Save(imagePath);
+
+                        // Process with OCR and save results
+                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                        using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                        {
+                            engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
+                            engine.SetVariable("tessedit_pageseg_mode", "6");
+                            engine.SetVariable("tessedit_ocr_engine_mode", "2");
+
+                            using (var img = ConvertEmguCvImageToPix(thresholdImage))
+                            {
+                                using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                                {
+                                    string result = page.GetText().Trim();
+                                    string resultPath = Path.Combine(debugDir, $"params_b{blockSize}_c{cValue}_{timestamp}.txt");
+                                    File.WriteAllText(resultPath, result);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in parameter testing: {ex.Message}");
+            }
+        }
 
         public class Server : INotifyPropertyChanged
         {
@@ -1302,11 +1701,11 @@ namespace WoWServerManager
                 var browseButton = new System.Windows.Controls.Button { Content = "Browse", Width = 75, Margin = new Thickness(5) };
                 browseButton.Click += (sender, args) =>
                 {
-                    var dialog = new Microsoft.Win32.OpenFileDialog
-                    {
-                        Filter = "Executable Files|*.exe|All Files|*.*",
-                        Title = "Select WoW Launcher"
-                    };
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Executable Files|*.exe|All Files|*.*",
+                    Title = "Select WoW Launcher"
+                };
 
                     if (dialog.ShowDialog() == true)
                     {
@@ -1637,6 +2036,16 @@ namespace WoWServerManager
 
                 Content = grid;
             }
+        }
+    }
+
+    // Extension method to convert Bitmap to EmguCV Image
+    public static class BitmapExtensions
+    {
+        public static Image<TColor, byte> ToImage<TColor>(this Bitmap bitmap)
+            where TColor : struct, IColor
+        {
+            return new Image<TColor, byte>(bitmap);
         }
     }
 }
