@@ -17,6 +17,10 @@ using System.Runtime.InteropServices;
 using MessageBox = System.Windows.MessageBox;
 using System.Text.Json.Serialization;
 using System.Drawing;
+using System.Drawing.Imaging;
+using Tesseract;
+using Point = System.Drawing.Point; // Resolves Point ambiguity
+using ImageFormat = System.Drawing.Imaging.ImageFormat; // Resolves ImageFormat ambiguity
 
 namespace WoWServerManager
 {
@@ -579,73 +583,299 @@ namespace WoWServerManager
 
         private async Task SelectCharacterByName(string characterName)
         {
-            int maxAttempts = 20; // Prevent infinite loops
+            const int maxAttempts = 12;
+            const double highConfidenceThreshold = 0.90;
+            const double mediumConfidenceThreshold = 0.75;
+
+            if (SelectedAccount?.SelectedCharacter == null)
+            {
+                SendKeys.SendWait("{ENTER}");
+                return;
+            }
+
+            Character target = SelectedAccount.SelectedCharacter;
+            Console.WriteLine($"Searching for: {target.Name} (Lvl {target.Level} {target.Class})");
+
+            // Go to top of character list
+            SendKeys.SendWait("{HOME}");
+            await Task.Delay(1200);
+
+            // Store best match info
+            double bestScore = 0;
+            int bestPosition = -1;
+            string bestMatchText = "";
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                // Take a screenshot
-                var screenText = CaptureScreenText();
+                string ocrText = CaptureScreenText();
+                double score = CalculateCharacterMatchScore(ocrText, target);
 
-                // Check if character name is visible and selected (in the center of screen)
-                if (screenText.Contains(characterName))
+                Console.WriteLine($"Pos {attempt}: Score {score:F2}\nText: {ocrText}");
+
+                // Update best match
+                if (score > bestScore)
                 {
-                    // The character might be visible in the list but not selected
-                    // We need to determine if it's the selected character (center of screen)
-                    // This is challenging with just OCR
-
-                    // For simplicity, we'll check if "Enter World" is enabled and just press it
-                    if (screenText.Contains("Enter World"))
-                    {
-                        // Likely at character screen with a character selected
-                        SendKeys.SendWait("{ENTER}");
-                        return;
-                    }
+                    bestScore = score;
+                    bestPosition = attempt;
+                    bestMatchText = ocrText;
                 }
 
-                // Navigate through the character list
-                // Use RIGHT arrow to move down in the list
-                SendKeys.SendWait("{RIGHT}");
-                await Task.Delay(500); // Wait for UI to update
+                // High confidence - select immediately
+                if (score >= highConfidenceThreshold)
+                {
+                    Console.WriteLine($"Exact match found - selecting");
+                    SendKeys.SendWait("{ENTER}");
+                    await Task.Delay(1000);
+                    return;
+                }
+
+                // Move to next character
+                SendKeys.SendWait("{DOWN}");
+                await Task.Delay(600);
             }
 
-            // If we didn't find the character after max attempts, just select whatever is selected
+            // Fallback to best match if reasonable
+            if (bestScore >= mediumConfidenceThreshold && bestPosition >= 0)
+            {
+                Console.WriteLine($"Best match (Score {bestScore:F2}) at position {bestPosition}");
+                Console.WriteLine($"Match text: {bestMatchText}");
+
+                // Return to top
+                SendKeys.SendWait("{HOME}");
+                await Task.Delay(1000);
+
+                // Navigate to best position
+                for (int i = 0; i < bestPosition; i++)
+                {
+                    SendKeys.SendWait("{DOWN}");
+                    await Task.Delay(400);
+                }
+
+                SendKeys.SendWait("{ENTER}");
+                await Task.Delay(1000);
+                return;
+            }
+
+            // Final fallback
+            Console.WriteLine("No good match found - selecting current character");
             SendKeys.SendWait("{ENTER}");
+        }
+
+        private double CalculateCharacterMatchScore(string screenText, Character character)
+        {
+            if (string.IsNullOrWhiteSpace(screenText)) return 0;
+
+            double score = 0;
+            string lowerText = screenText.ToLower();
+            string targetName = character.Name.ToLower();
+            string targetClass = character.Class.ToLower();
+
+            // Name matching (more strict)
+            if (lowerText.Contains(targetName))
+            {
+                score += 0.7; // Strong match for exact name
+            }
+            else
+            {
+                // Try fuzzy matching for name
+                foreach (var part in character.Name.Split(' '))
+                {
+                    if (part.Length > 4 && lowerText.Contains(part.ToLower()))
+                    {
+                        score += 0.3; // Partial credit for name part
+                        break;
+                    }
+                }
+            }
+
+            // Class matching (more strict)
+            if (!string.IsNullOrWhiteSpace(character.Class))
+            {
+                if (lowerText.Contains(targetClass))
+                {
+                    score += 0.2;
+                }
+                else
+                {
+                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
+                    string classAbbrev = character.Class.Length > 3
+                        ? character.Class.Substring(0, 3).ToLower()
+                        : character.Class.ToLower();
+
+                    if (lowerText.Contains(classAbbrev))
+                    {
+                        score += 0.1;
+                    }
+                }
+            }
+
+            // Level matching (exact only)
+            if (lowerText.Contains($"level {character.Level}") ||
+                lowerText.Contains($"lvl {character.Level}"))
+            {
+                score += 0.1;
+            }
+
+            return Math.Min(score, 1.0);
         }
 
         private string CaptureScreenText()
         {
+            string debugDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
+            string debugImagePath = "";
+            string debugTextPath = "";
+
             try
             {
-                // Capture the screen
-                Rectangle bounds = Screen.PrimaryScreen.Bounds;
-                using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height))
+                // Create debug directory if it doesn't exist
+                if (!Directory.Exists(debugDirectory))
+                {
+                    Directory.CreateDirectory(debugDirectory);
+                }
+
+                // Get screen bounds (focus on right side where character list appears)
+                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
+
+                // Calculate capture area - these values work well for 1920x1080
+                int captureWidth = (int)(screenBounds.Width * 0.3);  // 30% of screen width
+                int captureHeight = (int)(screenBounds.Height * 0.7); // 70% of screen height
+                int captureX = screenBounds.Width - captureWidth;    // Right side
+                int captureY = (int)(screenBounds.Height * 0.15);    // Slightly below top
+
+                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
+
+                // Generate timestamp for debug files
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmssfff");
+                debugImagePath = Path.Combine(debugDirectory, $"ocr_capture_{timestamp}.png");
+                debugTextPath = Path.Combine(debugDirectory, $"ocr_result_{timestamp}.txt");
+
+                // Capture screen region
+                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
                 {
                     using (Graphics g = Graphics.FromImage(bitmap))
                     {
-                        g.CopyFromScreen(new Point(bounds.Left, bounds.Top), Point.Empty, bounds.Size);
+                        g.CopyFromScreen(
+                            new System.Drawing.Point(captureBounds.Left, captureBounds.Top), // Fixed: Fully qualified Point
+                            System.Drawing.Point.Empty, // Fixed: Fully qualified Point
+                            captureBounds.Size);
                     }
 
-                    // Save the screenshot temporarily
-                    string tempFile = Path.Combine(Path.GetTempPath(), "wow_screen.png");
-                    bitmap.Save(tempFile);
+                    // Save the screenshot for debugging
+                    bitmap.Save(debugImagePath, System.Drawing.Imaging.ImageFormat.Png); // Fixed: Fully qualified ImageFormat
 
-                    // Use OCR to read text from the screen
-                    using (var engine = new TesseractEngine("./tessdata", "eng", EngineMode.Default))
+
+                    // Pre-process image for better OCR
+                    using (Bitmap processedBitmap = PreprocessImageForOCR(bitmap))
                     {
-                        using (var img = Pix.LoadFromFile(tempFile))
+                        string processedImagePath = Path.Combine(debugDirectory, $"ocr_processed_{timestamp}.png");
+                        processedBitmap.Save(processedImagePath, System.Drawing.Imaging.ImageFormat.Png); // Fixed: Fully qualified ImageFormat
+
+                        // Perform OCR
+                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                        string result = "";
+
+                        try
                         {
-                            using (var page = engine.Process(img))
+                            using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
                             {
-                                return page.GetText();
+                                // Optimize OCR settings for game text
+                                engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
+                                engine.SetVariable("tessedit_pageseg_mode", "6"); // Assume a single uniform block of text
+                                engine.SetVariable("tessedit_ocr_engine_mode", "2"); // LSTM only
+
+                                using (var img = Pix.LoadFromMemory(ImageToByteArray(processedBitmap)))
+                                {
+                                    using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                                    {
+                                        result = page.GetText();
+                                        File.WriteAllText(debugTextPath, result); // Save OCR result
+                                    }
+                                }
                             }
                         }
+                        catch (Exception ocrEx)
+                        {
+                            File.WriteAllText(debugTextPath, $"OCR Error: {ocrEx.Message}");
+                            Console.WriteLine($"OCR Error: {ocrEx.Message}");
+                            return string.Empty;
+                        }
+
+                        return result;
                     }
                 }
             }
             catch (Exception ex)
             {
+                // Write error to debug file
+                try
+                {
+                    File.WriteAllText(debugTextPath, $"Capture Error: {ex.Message}\n{ex.StackTrace}");
+                }
+                catch { /* Ignore secondary errors */ }
+
                 Console.WriteLine($"Error capturing screen: {ex.Message}");
                 return string.Empty;
+            }
+        }
+
+        private Bitmap PreprocessImageForOCR(Bitmap original)
+        {
+            // Convert to grayscale
+            Bitmap grayscale = new Bitmap(original.Width, original.Height);
+            using (Graphics g = Graphics.FromImage(grayscale))
+            {
+                ColorMatrix colorMatrix = new ColorMatrix(
+                    new float[][]
+                    {
+                new float[] {0.299f, 0.299f, 0.299f, 0, 0},
+                new float[] {0.587f, 0.587f, 0.587f, 0, 0},
+                new float[] {0.114f, 0.114f, 0.114f, 0, 0},
+                new float[] {0, 0, 0, 1, 0},
+                new float[] {0, 0, 0, 0, 1}
+                    });
+
+                using (ImageAttributes attributes = new ImageAttributes())
+                {
+                    attributes.SetColorMatrix(colorMatrix);
+                    g.DrawImage(original, new Rectangle(0, 0, original.Width, original.Height),
+                        0, 0, original.Width, original.Height, GraphicsUnit.Pixel, attributes);
+                }
+            }
+
+            // Increase contrast
+            Bitmap highContrast = new Bitmap(grayscale.Width, grayscale.Height);
+            using (Graphics g = Graphics.FromImage(highContrast))
+            {
+                float contrast = 2.0f; // 2.0 seems to work well for game text
+                float offset = -0.5f * contrast + 0.5f;
+
+                ColorMatrix colorMatrix = new ColorMatrix(new float[][]
+                {
+            new float[] {contrast, 0, 0, 0, 0},
+            new float[] {0, contrast, 0, 0, 0},
+            new float[] {0, 0, contrast, 0, 0},
+            new float[] {0, 0, 0, 1, 0},
+            new float[] {offset, offset, offset, 0, 1}
+                });
+
+                using (ImageAttributes attributes = new ImageAttributes())
+                {
+                    attributes.SetColorMatrix(colorMatrix);
+                    g.DrawImage(grayscale, new Rectangle(0, 0, grayscale.Width, grayscale.Height),
+                        0, 0, grayscale.Width, grayscale.Height, GraphicsUnit.Pixel, attributes);
+                }
+            }
+
+            grayscale.Dispose();
+            return highContrast;
+        }
+
+        private byte[] ImageToByteArray(Image image)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                image.Save(ms, ImageFormat.Png);
+                return ms.ToArray();
             }
         }
 
