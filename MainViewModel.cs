@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 // Explicitly using WPF MessageBox
 using MessageBox = System.Windows.MessageBox;
 using System.Text.Json.Serialization;
+using System.Drawing;
 
 namespace WoWServerManager
 {
@@ -79,6 +80,7 @@ namespace WoWServerManager
             {
                 _selectedAccount = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(Characters)); // Add this line
             }
         }
 
@@ -557,27 +559,16 @@ namespace WoWServerManager
                 SendKeys.SendWait("{ENTER}");
 
                 // Wait for character selection screen
-                await Task.Delay(SelectedExpansion.CharacterSelectDelayMs); // You'll need to add this property to Expansion class
+                await Task.Delay(SelectedExpansion.CharacterSelectDelayMs);
 
                 // If a character is selected, try to select it in the game
                 if (SelectedAccount.SelectedCharacter != null)
                 {
-                    // Character selection in WoW is typically done by navigating to the character using Tab key
-                    // and pressing Enter. However, this is a very basic approach and might not work in all cases.
-                    // For a more robust solution, you might need to use more advanced automation techniques.
-
-                    // Try to find the character by name by using search (Ctrl+F in some WoW versions)
-                    SendKeys.SendWait("^f"); // Ctrl+F
-                    await Task.Delay(500);
-                    SendKeys.SendWait(SelectedAccount.SelectedCharacter.Name);
-                    await Task.Delay(500);
-                    SendKeys.SendWait("{ENTER}"); // Confirm search
-                    await Task.Delay(500);
-                    SendKeys.SendWait("{ENTER}"); // Select character
+                    await SelectCharacterByName(SelectedAccount.SelectedCharacter.Name);
                 }
 
                 MessageBox.Show($"Game launched successfully with account: {SelectedAccount.Username}" +
-                                (SelectedAccount.SelectedCharacter != null ? $" and character: {SelectedAccount.SelectedCharacter.Name}" : ""),
+                                (SelectedAccount.SelectedCharacter != null ? $" and attempted to select character: {SelectedAccount.SelectedCharacter.Name}" : ""),
                                 "Launch Successful", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -586,47 +577,119 @@ namespace WoWServerManager
             }
         }
 
+        private async Task SelectCharacterByName(string characterName)
+        {
+            int maxAttempts = 20; // Prevent infinite loops
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                // Take a screenshot
+                var screenText = CaptureScreenText();
+
+                // Check if character name is visible and selected (in the center of screen)
+                if (screenText.Contains(characterName))
+                {
+                    // The character might be visible in the list but not selected
+                    // We need to determine if it's the selected character (center of screen)
+                    // This is challenging with just OCR
+
+                    // For simplicity, we'll check if "Enter World" is enabled and just press it
+                    if (screenText.Contains("Enter World"))
+                    {
+                        // Likely at character screen with a character selected
+                        SendKeys.SendWait("{ENTER}");
+                        return;
+                    }
+                }
+
+                // Navigate through the character list
+                // Use RIGHT arrow to move down in the list
+                SendKeys.SendWait("{RIGHT}");
+                await Task.Delay(500); // Wait for UI to update
+            }
+
+            // If we didn't find the character after max attempts, just select whatever is selected
+            SendKeys.SendWait("{ENTER}");
+        }
+
+        private string CaptureScreenText()
+        {
+            try
+            {
+                // Capture the screen
+                Rectangle bounds = Screen.PrimaryScreen.Bounds;
+                using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height))
+                {
+                    using (Graphics g = Graphics.FromImage(bitmap))
+                    {
+                        g.CopyFromScreen(new Point(bounds.Left, bounds.Top), Point.Empty, bounds.Size);
+                    }
+
+                    // Save the screenshot temporarily
+                    string tempFile = Path.Combine(Path.GetTempPath(), "wow_screen.png");
+                    bitmap.Save(tempFile);
+
+                    // Use OCR to read text from the screen
+                    using (var engine = new TesseractEngine("./tessdata", "eng", EngineMode.Default))
+                    {
+                        using (var img = Pix.LoadFromFile(tempFile))
+                        {
+                            using (var page = engine.Process(img))
+                            {
+                                return page.GetText();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error capturing screen: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
 
 
 
 
         public class Server : INotifyPropertyChanged
-    {
-        private string _name;
-        private ObservableCollection<Expansion> _expansions;
-
-        public string Name
         {
-            get => _name;
-            set
+            private string _name;
+            private ObservableCollection<Expansion> _expansions;
+
+            public string Name
             {
-                _name = value;
-                OnPropertyChanged();
+                get => _name;
+                set
+                {
+                    _name = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public ObservableCollection<Expansion> Expansions
+            {
+                get => _expansions;
+                set
+                {
+                    _expansions = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public Server()
+            {
+                Expansions = new ObservableCollection<Expansion>();
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
         }
-
-        public ObservableCollection<Expansion> Expansions
-        {
-            get => _expansions;
-            set
-            {
-                _expansions = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public Server()
-        {
-            Expansions = new ObservableCollection<Expansion>();
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
 
 
         public class Expansion : INotifyPropertyChanged
@@ -713,242 +776,242 @@ namespace WoWServerManager
         }
 
         public class Account : INotifyPropertyChanged
-    {
-        private string _username;
-        private string _password;
-        private Expansion _expansion; // Reference to parent expansion
-        private ObservableCollection<Character> _characters;
-        private Character _selectedCharacter;
-
-        public string Username
         {
-            get => _username;
-            set
+            private string _username;
+            private string _password;
+            private Expansion _expansion; // Reference to parent expansion
+            private ObservableCollection<Character> _characters;
+            private Character _selectedCharacter;
+
+            public string Username
             {
-                _username = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public string Password
-        {
-            get => _password;
-            set
-            {
-                _password = value;
-                OnPropertyChanged();
-            }
-        }
-
-        [JsonIgnore] // Prevents circular reference during serialization
-        public Expansion Expansion
-        {
-            get => _expansion;
-            set
-            {
-                _expansion = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public ObservableCollection<Character> Characters
-        {
-            get => _characters;
-            set
-            {
-                _characters = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public Character SelectedCharacter
-        {
-            get => _selectedCharacter;
-            set
-            {
-                _selectedCharacter = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public Account()
-        {
-            Characters = new ObservableCollection<Character>();
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public class Character : INotifyPropertyChanged
-    {
-        private string _name;
-        private string _realm;
-        private string _class;  // Character class (Warrior, Mage, etc.)
-        private int _level;
-        private Account _account; // Reference to parent account
-
-        public string Name
-        {
-            get => _name;
-            set
-            {
-                _name = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public string Realm
-        {
-            get => _realm;
-            set
-            {
-                _realm = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public string Class
-        {
-            get => _class;
-            set
-            {
-                _class = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public int Level
-        {
-            get => _level;
-            set
-            {
-                _level = value;
-                OnPropertyChanged();
-            }
-        }
-
-        [JsonIgnore] // Prevents circular reference during serialization
-        public Account Account
-        {
-            get => _account;
-            set
-            {
-                _account = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public class RelayCommand : ICommand
-    {
-        private readonly Action<object> _execute;
-        private readonly Predicate<object> _canExecute;
-
-        public RelayCommand(Action<object> execute, Predicate<object> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public bool CanExecute(object parameter)
-        {
-            return _canExecute == null || _canExecute(parameter);
-        }
-
-        public void Execute(object parameter)
-        {
-            _execute(parameter);
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
-        }
-    }
-
-    // Dialog Classes
-    public class ServerDialog : Window
-    {
-        public Server Server { get; private set; }
-
-        public ServerDialog(Server existingServer = null)
-        {
-            // Set dialog properties and layout
-            Title = existingServer == null ? "Add Server" : "Edit Server";
-            Width = 400;
-            Height = 150; // Reduced height as we only have one field now
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
-
-            // Create a new server object for the dialog
-            // If we're editing, copy just the name (we'll update only this property)
-            Server = new Server { Name = existingServer?.Name ?? string.Empty };
-
-            // Create form layout
-            var grid = new System.Windows.Controls.Grid();
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.Margin = new Thickness(10);
-
-            // Name label and textbox
-            var nameLabel = new System.Windows.Controls.Label { Content = "Server Name:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(nameLabel, 0);
-            System.Windows.Controls.Grid.SetColumn(nameLabel, 0);
-
-            var nameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Server.Name };
-            nameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Name") { Source = Server, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
-            System.Windows.Controls.Grid.SetRow(nameTextBox, 0);
-            System.Windows.Controls.Grid.SetColumn(nameTextBox, 1);
-
-            // Button panel
-            var buttonPanel = new System.Windows.Controls.StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-            System.Windows.Controls.Grid.SetRow(buttonPanel, 1);
-            System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
-            System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
-
-            var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
-            saveButton.Click += (sender, args) =>
-            {
-                if (string.IsNullOrWhiteSpace(Server.Name))
+                get => _username;
+                set
                 {
-                    MessageBox.Show("Server name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
+                    _username = value;
+                    OnPropertyChanged();
                 }
+            }
 
-                DialogResult = true;
-            };
+            public string Password
+            {
+                get => _password;
+                set
+                {
+                    _password = value;
+                    OnPropertyChanged();
+                }
+            }
 
-            var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
+            [JsonIgnore] // Prevents circular reference during serialization
+            public Expansion Expansion
+            {
+                get => _expansion;
+                set
+                {
+                    _expansion = value;
+                    OnPropertyChanged();
+                }
+            }
 
-            buttonPanel.Children.Add(saveButton);
-            buttonPanel.Children.Add(cancelButton);
+            public ObservableCollection<Character> Characters
+            {
+                get => _characters;
+                set
+                {
+                    _characters = value;
+                    OnPropertyChanged();
+                }
+            }
 
-            grid.Children.Add(nameLabel);
-            grid.Children.Add(nameTextBox);
-            grid.Children.Add(buttonPanel);
+            public Character SelectedCharacter
+            {
+                get => _selectedCharacter;
+                set
+                {
+                    _selectedCharacter = value;
+                    OnPropertyChanged();
+                }
+            }
 
-            Content = grid;
+            public Account()
+            {
+                Characters = new ObservableCollection<Character>();
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
-    }
+
+        public class Character : INotifyPropertyChanged
+        {
+            private string _name;
+            private string _realm;
+            private string _class;  // Character class (Warrior, Mage, etc.)
+            private int _level;
+            private Account _account; // Reference to parent account
+
+            public string Name
+            {
+                get => _name;
+                set
+                {
+                    _name = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public string Realm
+            {
+                get => _realm;
+                set
+                {
+                    _realm = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public string Class
+            {
+                get => _class;
+                set
+                {
+                    _class = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public int Level
+            {
+                get => _level;
+                set
+                {
+                    _level = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            [JsonIgnore] // Prevents circular reference during serialization
+            public Account Account
+            {
+                get => _account;
+                set
+                {
+                    _account = value;
+                    OnPropertyChanged();
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        public class RelayCommand : ICommand
+        {
+            private readonly Action<object> _execute;
+            private readonly Predicate<object> _canExecute;
+
+            public RelayCommand(Action<object> execute, Predicate<object> canExecute = null)
+            {
+                _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+                _canExecute = canExecute;
+            }
+
+            public bool CanExecute(object parameter)
+            {
+                return _canExecute == null || _canExecute(parameter);
+            }
+
+            public void Execute(object parameter)
+            {
+                _execute(parameter);
+            }
+
+            public event EventHandler CanExecuteChanged
+            {
+                add => CommandManager.RequerySuggested += value;
+                remove => CommandManager.RequerySuggested -= value;
+            }
+        }
+
+        // Dialog Classes
+        public class ServerDialog : Window
+        {
+            public Server Server { get; private set; }
+
+            public ServerDialog(Server existingServer = null)
+            {
+                // Set dialog properties and layout
+                Title = existingServer == null ? "Add Server" : "Edit Server";
+                Width = 400;
+                Height = 150; // Reduced height as we only have one field now
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+                // Create a new server object for the dialog
+                // If we're editing, copy just the name (we'll update only this property)
+                Server = new Server { Name = existingServer?.Name ?? string.Empty };
+
+                // Create form layout
+                var grid = new System.Windows.Controls.Grid();
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.Margin = new Thickness(10);
+
+                // Name label and textbox
+                var nameLabel = new System.Windows.Controls.Label { Content = "Server Name:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(nameLabel, 0);
+                System.Windows.Controls.Grid.SetColumn(nameLabel, 0);
+
+                var nameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Server.Name };
+                nameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Name") { Source = Server, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+                System.Windows.Controls.Grid.SetRow(nameTextBox, 0);
+                System.Windows.Controls.Grid.SetColumn(nameTextBox, 1);
+
+                // Button panel
+                var buttonPanel = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+                System.Windows.Controls.Grid.SetRow(buttonPanel, 1);
+                System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
+                System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
+
+                var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
+                saveButton.Click += (sender, args) =>
+                {
+                    if (string.IsNullOrWhiteSpace(Server.Name))
+                    {
+                        MessageBox.Show("Server name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    DialogResult = true;
+                };
+
+                var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
+
+                buttonPanel.Children.Add(saveButton);
+                buttonPanel.Children.Add(cancelButton);
+
+                grid.Children.Add(nameLabel);
+                grid.Children.Add(nameTextBox);
+                grid.Children.Add(buttonPanel);
+
+                Content = grid;
+            }
+        }
 
 
         public class ExpansionDialog : Window
@@ -1107,242 +1170,243 @@ namespace WoWServerManager
         }
 
         public class AccountDialog : Window
-    {
-        public Account Account { get; private set; }
-
-        public AccountDialog(Account existingAccount = null)
         {
-            // Set dialog properties and layout
-            Title = existingAccount == null ? "Add Account" : "Edit Account";
-            Width = 400;
-            Height = 220; // Increased for additional information
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            public Account Account { get; private set; }
 
-            Account = existingAccount != null
-                ? new Account { Username = existingAccount.Username, Password = existingAccount.Password }
-                : new Account();
-
-            // Create form layout
-            var grid = new System.Windows.Controls.Grid();
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.Margin = new Thickness(10);
-
-            // Username label and textbox
-            var usernameLabel = new System.Windows.Controls.Label { Content = "Username:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(usernameLabel, 0);
-            System.Windows.Controls.Grid.SetColumn(usernameLabel, 0);
-
-            var usernameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Account.Username };
-            usernameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Username") { Source = Account, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
-            System.Windows.Controls.Grid.SetRow(usernameTextBox, 0);
-            System.Windows.Controls.Grid.SetColumn(usernameTextBox, 1);
-
-            // Password label and textbox
-            var passwordLabel = new System.Windows.Controls.Label { Content = "Password:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(passwordLabel, 1);
-            System.Windows.Controls.Grid.SetColumn(passwordLabel, 0);
-
-            var passwordBox = new System.Windows.Controls.PasswordBox { Margin = new Thickness(5) };
-            passwordBox.Password = Account.Password;
-            passwordBox.PasswordChanged += (sender, args) => Account.Password = passwordBox.Password;
-            System.Windows.Controls.Grid.SetRow(passwordBox, 1);
-            System.Windows.Controls.Grid.SetColumn(passwordBox, 1);
-
-            // Information text
-            var infoText = new System.Windows.Controls.TextBlock
+            public AccountDialog(Account existingAccount = null)
             {
-                Text = "After adding this account, you'll have the option to add more accounts for the same expansion.",
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(5, 10, 5, 10),
-                Foreground = System.Windows.Media.Brushes.Gray,
-                FontStyle = FontStyles.Italic
-            };
-            System.Windows.Controls.Grid.SetRow(infoText, 2);
-            System.Windows.Controls.Grid.SetColumn(infoText, 0);
-            System.Windows.Controls.Grid.SetColumnSpan(infoText, 2);
+                // Set dialog properties and layout
+                Title = existingAccount == null ? "Add Account" : "Edit Account";
+                Width = 400;
+                Height = 220; // Increased for additional information
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            // Button panel
-            var buttonPanel = new System.Windows.Controls.StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-            System.Windows.Controls.Grid.SetRow(buttonPanel, 3);
-            System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
-            System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
+                Account = existingAccount != null
+                    ? new Account { Username = existingAccount.Username, Password = existingAccount.Password }
+                    : new Account();
 
-            var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
-            saveButton.Click += (sender, args) =>
-            {
-                if (string.IsNullOrWhiteSpace(Account.Username))
+                // Create form layout
+                var grid = new System.Windows.Controls.Grid();
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.Margin = new Thickness(10);
+
+                // Username label and textbox
+                var usernameLabel = new System.Windows.Controls.Label { Content = "Username:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(usernameLabel, 0);
+                System.Windows.Controls.Grid.SetColumn(usernameLabel, 0);
+
+                var usernameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Account.Username };
+                usernameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Username") { Source = Account, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+                System.Windows.Controls.Grid.SetRow(usernameTextBox, 0);
+                System.Windows.Controls.Grid.SetColumn(usernameTextBox, 1);
+
+                // Password label and textbox
+                var passwordLabel = new System.Windows.Controls.Label { Content = "Password:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(passwordLabel, 1);
+                System.Windows.Controls.Grid.SetColumn(passwordLabel, 0);
+
+                var passwordBox = new System.Windows.Controls.PasswordBox { Margin = new Thickness(5) };
+                passwordBox.Password = Account.Password;
+                passwordBox.PasswordChanged += (sender, args) => Account.Password = passwordBox.Password;
+                System.Windows.Controls.Grid.SetRow(passwordBox, 1);
+                System.Windows.Controls.Grid.SetColumn(passwordBox, 1);
+
+                // Information text
+                var infoText = new System.Windows.Controls.TextBlock
                 {
-                    MessageBox.Show("Username is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-                if (string.IsNullOrWhiteSpace(Account.Password))
+                    Text = "After adding this account, you'll have the option to add more accounts for the same expansion.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(5, 10, 5, 10),
+                    Foreground = System.Windows.Media.Brushes.Gray,
+                    FontStyle = FontStyles.Italic
+                };
+                System.Windows.Controls.Grid.SetRow(infoText, 2);
+                System.Windows.Controls.Grid.SetColumn(infoText, 0);
+                System.Windows.Controls.Grid.SetColumnSpan(infoText, 2);
+
+                // Button panel
+                var buttonPanel = new System.Windows.Controls.StackPanel
                 {
-                    MessageBox.Show("Password is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-                DialogResult = true;
-            };
-            var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
-            buttonPanel.Children.Add(saveButton);
-            buttonPanel.Children.Add(cancelButton);
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+                System.Windows.Controls.Grid.SetRow(buttonPanel, 3);
+                System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
+                System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
 
-            grid.Children.Add(usernameLabel);
-            grid.Children.Add(usernameTextBox);
-            grid.Children.Add(passwordLabel);
-            grid.Children.Add(passwordBox);
-            grid.Children.Add(infoText);
-            grid.Children.Add(buttonPanel);
-
-            Content = grid;
-        }
-    }
-
-    public class CharacterDialog : Window
-    {
-        public Character Character { get; private set; }
-
-        public CharacterDialog(Character existingCharacter = null)
-        {
-            // Set dialog properties and layout
-            Title = existingCharacter == null ? "Add Character" : "Edit Character";
-            Width = 400;
-            Height = 250;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
-
-            Character = existingCharacter != null
-                ? new Character
+                var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
+                saveButton.Click += (sender, args) =>
                 {
-                    Name = existingCharacter.Name,
-                    Realm = existingCharacter.Realm,
-                    Class = existingCharacter.Class,
-                    Level = existingCharacter.Level
-                }
-                : new Character();
+                    if (string.IsNullOrWhiteSpace(Account.Username))
+                    {
+                        MessageBox.Show("Username is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    if (string.IsNullOrWhiteSpace(Account.Password))
+                    {
+                        MessageBox.Show("Password is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    DialogResult = true;
+                };
+                var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
+                buttonPanel.Children.Add(saveButton);
+                buttonPanel.Children.Add(cancelButton);
 
-            // Create form layout
-            var grid = new System.Windows.Controls.Grid();
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.Margin = new Thickness(10);
+                grid.Children.Add(usernameLabel);
+                grid.Children.Add(usernameTextBox);
+                grid.Children.Add(passwordLabel);
+                grid.Children.Add(passwordBox);
+                grid.Children.Add(infoText);
+                grid.Children.Add(buttonPanel);
 
-            // Name label and textbox
-            var nameLabel = new System.Windows.Controls.Label { Content = "Character Name:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(nameLabel, 0);
-            System.Windows.Controls.Grid.SetColumn(nameLabel, 0);
-
-            var nameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Name };
-            nameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Name") { Source = Character, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
-            System.Windows.Controls.Grid.SetRow(nameTextBox, 0);
-            System.Windows.Controls.Grid.SetColumn(nameTextBox, 1);
-
-            // Realm label and textbox
-            var realmLabel = new System.Windows.Controls.Label { Content = "Realm:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(realmLabel, 1);
-            System.Windows.Controls.Grid.SetColumn(realmLabel, 0);
-
-            var realmTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Realm };
-            realmTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Realm") { Source = Character, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
-            System.Windows.Controls.Grid.SetRow(realmTextBox, 1);
-            System.Windows.Controls.Grid.SetColumn(realmTextBox, 1);
-
-            // Class label and combobox
-            var classLabel = new System.Windows.Controls.Label { Content = "Class:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(classLabel, 2);
-            System.Windows.Controls.Grid.SetColumn(classLabel, 0);
-
-            var classComboBox = new System.Windows.Controls.ComboBox { Margin = new Thickness(5) };
-            string[] wowClasses = { "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman", "Mage", "Warlock", "Monk", "Druid", "Demon Hunter", "Evoker" };
-            foreach (var wowClass in wowClasses)
-            {
-                classComboBox.Items.Add(wowClass);
+                Content = grid;
             }
-            classComboBox.SelectedItem = Character.Class;
-            classComboBox.SelectionChanged += (sender, args) => Character.Class = classComboBox.SelectedItem as string;
-            System.Windows.Controls.Grid.SetRow(classComboBox, 2);
-            System.Windows.Controls.Grid.SetColumn(classComboBox, 1);
+        }
 
-            // Level label and numeric input
-            var levelLabel = new System.Windows.Controls.Label { Content = "Level:", VerticalAlignment = VerticalAlignment.Center };
-            System.Windows.Controls.Grid.SetRow(levelLabel, 3);
-            System.Windows.Controls.Grid.SetColumn(levelLabel, 0);
+        public class CharacterDialog : Window
+        {
+            public Character Character { get; private set; }
 
-            var levelTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Level.ToString() };
-            levelTextBox.TextChanged += (sender, args) =>
+            public CharacterDialog(Character existingCharacter = null)
             {
-                if (int.TryParse(levelTextBox.Text, out int level))
+                // Set dialog properties and layout
+                Title = existingCharacter == null ? "Add Character" : "Edit Character";
+                Width = 400;
+                Height = 250;
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+                Character = existingCharacter != null
+                    ? new Character
+                    {
+                        Name = existingCharacter.Name,
+                        Realm = existingCharacter.Realm,
+                        Class = existingCharacter.Class,
+                        Level = existingCharacter.Level
+                    }
+                    : new Character();
+
+                // Create form layout
+                var grid = new System.Windows.Controls.Grid();
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.Margin = new Thickness(10);
+
+                // Name label and textbox
+                var nameLabel = new System.Windows.Controls.Label { Content = "Character Name:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(nameLabel, 0);
+                System.Windows.Controls.Grid.SetColumn(nameLabel, 0);
+
+                var nameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Name };
+                nameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Name") { Source = Character, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+                System.Windows.Controls.Grid.SetRow(nameTextBox, 0);
+                System.Windows.Controls.Grid.SetColumn(nameTextBox, 1);
+
+                // Realm label and textbox
+                var realmLabel = new System.Windows.Controls.Label { Content = "Realm:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(realmLabel, 1);
+                System.Windows.Controls.Grid.SetColumn(realmLabel, 0);
+
+                var realmTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Realm };
+                realmTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Realm") { Source = Character, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+                System.Windows.Controls.Grid.SetRow(realmTextBox, 1);
+                System.Windows.Controls.Grid.SetColumn(realmTextBox, 1);
+
+                // Class label and combobox
+                var classLabel = new System.Windows.Controls.Label { Content = "Class:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(classLabel, 2);
+                System.Windows.Controls.Grid.SetColumn(classLabel, 0);
+
+                var classComboBox = new System.Windows.Controls.ComboBox { Margin = new Thickness(5) };
+                string[] wowClasses = { "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman", "Mage", "Warlock", "Monk", "Druid", "Demon Hunter", "Evoker" };
+                foreach (var wowClass in wowClasses)
                 {
-                    Character.Level = level;
+                    classComboBox.Items.Add(wowClass);
                 }
-            };
-            System.Windows.Controls.Grid.SetRow(levelTextBox, 3);
-            System.Windows.Controls.Grid.SetColumn(levelTextBox, 1);
+                classComboBox.SelectedItem = Character.Class;
+                classComboBox.SelectionChanged += (sender, args) => Character.Class = classComboBox.SelectedItem as string;
+                System.Windows.Controls.Grid.SetRow(classComboBox, 2);
+                System.Windows.Controls.Grid.SetColumn(classComboBox, 1);
 
-            // Button panel
-            var buttonPanel = new System.Windows.Controls.StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-            System.Windows.Controls.Grid.SetRow(buttonPanel, 4);
-            System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
-            System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
+                // Level label and numeric input
+                var levelLabel = new System.Windows.Controls.Label { Content = "Level:", VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(levelLabel, 3);
+                System.Windows.Controls.Grid.SetColumn(levelLabel, 0);
 
-            var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
-            saveButton.Click += (sender, args) =>
-            {
-                if (string.IsNullOrWhiteSpace(Character.Name))
+                var levelTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Character.Level.ToString() };
+                levelTextBox.TextChanged += (sender, args) =>
                 {
-                    MessageBox.Show("Character name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
+                    if (int.TryParse(levelTextBox.Text, out int level))
+                    {
+                        Character.Level = level;
+                    }
+                };
+                System.Windows.Controls.Grid.SetRow(levelTextBox, 3);
+                System.Windows.Controls.Grid.SetColumn(levelTextBox, 1);
 
-                if (string.IsNullOrWhiteSpace(Character.Realm))
+                // Button panel
+                var buttonPanel = new System.Windows.Controls.StackPanel
                 {
-                    MessageBox.Show("Realm is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+                System.Windows.Controls.Grid.SetRow(buttonPanel, 4);
+                System.Windows.Controls.Grid.SetColumn(buttonPanel, 0);
+                System.Windows.Controls.Grid.SetColumnSpan(buttonPanel, 2);
 
-                if (string.IsNullOrWhiteSpace(Character.Class))
+                var saveButton = new System.Windows.Controls.Button { Content = "Save", Width = 75, Margin = new Thickness(0, 0, 5, 0), IsDefault = true };
+                saveButton.Click += (sender, args) =>
                 {
-                    MessageBox.Show("Class is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
+                    if (string.IsNullOrWhiteSpace(Character.Name))
+                    {
+                        MessageBox.Show("Character name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
 
-                DialogResult = true;
-            };
+                    if (string.IsNullOrWhiteSpace(Character.Realm))
+                    {
+                        MessageBox.Show("Realm is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
 
-            var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
+                    if (string.IsNullOrWhiteSpace(Character.Class))
+                    {
+                        MessageBox.Show("Class is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
 
-            buttonPanel.Children.Add(saveButton);
-            buttonPanel.Children.Add(cancelButton);
+                    DialogResult = true;
+                };
 
-            grid.Children.Add(nameLabel);
-            grid.Children.Add(nameTextBox);
-            grid.Children.Add(realmLabel);
-            grid.Children.Add(realmTextBox);
-            grid.Children.Add(classLabel);
-            grid.Children.Add(classComboBox);
-            grid.Children.Add(levelLabel);
-            grid.Children.Add(levelTextBox);
-            grid.Children.Add(buttonPanel);
+                var cancelButton = new System.Windows.Controls.Button { Content = "Cancel", Width = 75, IsCancel = true };
 
-            Content = grid;
+                buttonPanel.Children.Add(saveButton);
+                buttonPanel.Children.Add(cancelButton);
+
+                grid.Children.Add(nameLabel);
+                grid.Children.Add(nameTextBox);
+                grid.Children.Add(realmLabel);
+                grid.Children.Add(realmTextBox);
+                grid.Children.Add(classLabel);
+                grid.Children.Add(classComboBox);
+                grid.Children.Add(levelLabel);
+                grid.Children.Add(levelTextBox);
+                grid.Children.Add(buttonPanel);
+
+                Content = grid;
+            }
         }
     }
 }
