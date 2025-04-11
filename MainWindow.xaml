@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:WoWServerManager"
         mc:Ignorable="d"
         Title="World of Warcraft Server Manager" 
-        Height="700" Width="1050"
+        Height="700" Width="1350"
         WindowStartupLocation="CenterScreen"
         Background="#0C0C0C">
 
@@ -82,9 +82,16 @@
 
         <!-- Custom Data Templates for ListBoxes -->
         <DataTemplate x:Key="ExpansionTemplate">
-            <StackPanel Margin="3">
-                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="#AAAAAA" FontSize="11"/>
+            <StackPanel Margin="3" Orientation="Horizontal">
+                <Image Source="{Binding IconPath}" 
+               Width="48" Height="48" 
+               Margin="0,0,10,0" 
+               VerticalAlignment="Center"
+               Stretch="Uniform"/>
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="#AAAAAA" FontSize="11"/>
+                </StackPanel>
             </StackPanel>
         </DataTemplate>
 
@@ -193,14 +200,15 @@
             <!-- Character Selection - NEW -->
             <StackPanel Grid.Column="3" Margin="10">
                 <TextBlock Text="CHARACTERS" Style="{StaticResource WoWHeaderStyle}"/>
-
                 <!-- Warning message directly below the header -->
                 <Border Background="#002040" BorderBrush="{StaticResource WoWGold}" BorderThickness="1" 
-            Margin="0,5,0,10" Padding="5,3">
-                    <TextBlock Text="Character selection is a work in progress and may not be accurate." 
-                   Foreground="{StaticResource WoWGold}" 
+        Margin="0,5,0,10" Padding="5,3">
+                    <TextBlock Foreground="{StaticResource WoWGold}" 
                    TextWrapping="Wrap"
-                   FontSize="11"/>
+                   FontSize="11">
+            <Run Text="⚠️ " FontWeight="Bold"/>
+            <Run Text="Character selection is still under development and may not always select the correct character."/>
+                    </TextBlock>
                 </Border>
 
                 <ListBox x:Name="CharacterListBox" Height="300" 
