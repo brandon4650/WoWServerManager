@@ -1,4 +1,4 @@
-﻿<Window x:Class="WoWServerManager.MainWindow"
+<Window x:Class="WoWServerManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -114,11 +114,16 @@
 
         <!-- Header -->
         <Border Grid.Row="0" Background="#222222" BorderBrush="{StaticResource WoWGold}" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" Margin="10">
-                <Image Source="/Resources/wow-icon.png" Width="48" Height="48" Margin="0,0,15,0"/>
-                <TextBlock Text="WORLD OF WARCRAFT SERVER MANAGER" FontSize="24" FontWeight="Bold" 
-                           Foreground="{StaticResource WoWGold}" VerticalAlignment="Center"/>
-            </StackPanel>
+            <Grid>
+                <StackPanel Orientation="Horizontal" Margin="10">
+                    <Image Source="/Resources/wow-icon.png" Width="48" Height="48" Margin="0,0,15,0"/>
+                    <TextBlock Text="WORLD OF WARCRAFT SERVER MANAGER" FontSize="24" FontWeight="Bold" 
+                       Foreground="{StaticResource WoWGold}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button x:Name="HowToUseButton" Content="How to Use" Style="{StaticResource WoWButtonStyle}" 
+                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+                Command="{Binding ShowHowToUseCommand}"/>
+            </Grid>
         </Border>
 
         <!-- Main Content -->
@@ -188,10 +193,20 @@
             <!-- Character Selection - NEW -->
             <StackPanel Grid.Column="3" Margin="10">
                 <TextBlock Text="CHARACTERS" Style="{StaticResource WoWHeaderStyle}"/>
+
+                <!-- Warning message directly below the header -->
+                <Border Background="#002040" BorderBrush="{StaticResource WoWGold}" BorderThickness="1" 
+            Margin="0,5,0,10" Padding="5,3">
+                    <TextBlock Text="Character selection is a work in progress and may not be accurate." 
+                   Foreground="{StaticResource WoWGold}" 
+                   TextWrapping="Wrap"
+                   FontSize="11"/>
+                </Border>
+
                 <ListBox x:Name="CharacterListBox" Height="300" 
-                 ItemsSource="{Binding Characters}"
-                 SelectedItem="{Binding SelectedCharacter}"
-                 Style="{StaticResource WoWListBoxStyle}">
+             ItemsSource="{Binding Characters}"
+             SelectedItem="{Binding SelectedCharacter}"
+             Style="{StaticResource WoWListBoxStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="3">
@@ -208,11 +223,11 @@
                 </ListBox>
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                     <Button x:Name="AddCharacterButton" Content="Add Character" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding AddCharacterCommand}"/>
+                Command="{Binding AddCharacterCommand}"/>
                     <Button x:Name="EditCharacterButton" Content="Edit Character" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding EditCharacterCommand}"/>
+                Command="{Binding EditCharacterCommand}"/>
                     <Button x:Name="RemoveCharacterButton" Content="Remove Character" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding RemoveCharacterCommand}"/>
+                Command="{Binding RemoveCharacterCommand}"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
