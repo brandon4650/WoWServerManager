@@ -2240,28 +2240,8 @@ namespace WoWServerManager
                 get => _selectedCharacter;
                 set
                 {
-                    // Allow deselection by clicking the selected item again
-                    if (_selectedCharacter == value)
-                    {
-                        _selectedCharacter = null;
-
-                        // Also update the selected character in the account
-                        if (SelectedAccount != null)
-                        {
-                            SelectedAccount.SelectedCharacter = null;
-                        }
-                    }
-                    else
-                    {
-                        _selectedCharacter = value;
-
-                        // Also update the selected character in the account
-                        if (SelectedAccount != null)
-                        {
-                            SelectedAccount.SelectedCharacter = value;
-                        }
-                    }
-
+                    // Simpler setter that doesn't try to access SelectedAccount
+                    _selectedCharacter = value;
                     OnPropertyChanged();
                 }
             }
