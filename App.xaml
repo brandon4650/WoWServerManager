@@ -1,9 +1,89 @@
-﻿<Application x:Class="WoWServerManager.App"
+<Application x:Class="WoWServerManager.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WoWServerManager"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- You could add shared application resources here -->
+        <!-- WoW Theme Colors -->
+        <SolidColorBrush x:Key="WoWGold" Color="#FFCC00"/>
+        <SolidColorBrush x:Key="WoWBlue" Color="#004A7F"/>
+        <SolidColorBrush x:Key="WoWDarkBlue" Color="#002040"/>
+        <SolidColorBrush x:Key="WoWLightBlue" Color="#00AAFF"/>
+        <SolidColorBrush x:Key="WoWBackgroundDark" Color="#0C0C0C"/>
+        <SolidColorBrush x:Key="WoWBackgroundMedium" Color="#1A1A1A"/>
+
+        <!-- WoW-themed tooltip style -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Background" Value="#002040"/>
+            <Setter Property="Foreground" Value="#FFCC00"/>
+            <Setter Property="BorderBrush" Value="#FFCC00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+            <Setter Property="MaxWidth" Value="500"/>
+            <!-- Increased from 300 -->
+        </Style>
+
+        <!-- Button Styles -->
+        <Style x:Key="WoWButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource WoWDarkBlue}"/>
+            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="15,5"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource WoWBlue}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#003366"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style x:Key="WoWComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource WoWBackgroundMedium}"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- ListBox Style -->
+        <Style x:Key="WoWListBoxStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="{StaticResource WoWBackgroundMedium}"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- Label Style -->
+        <Style x:Key="WoWLabelStyle" TargetType="Label">
+            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <!-- TextBlock Header Style -->
+        <Style x:Key="WoWHeaderStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Margin" Value="0,10,0,5"/>
+        </Style>
     </Application.Resources>
 </Application>
