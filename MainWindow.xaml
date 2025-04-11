@@ -82,17 +82,25 @@
 
         <!-- Custom Data Templates for ListBoxes -->
         <DataTemplate x:Key="ExpansionTemplate">
-            <StackPanel Margin="3" Orientation="Horizontal">
-                <Image Source="{Binding IconPath}" 
-               Width="48" Height="48" 
-               Margin="0,0,10,0" 
-               VerticalAlignment="Center"
-               Stretch="Uniform"/>
-                <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
                     <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
                     <TextBlock Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="#AAAAAA" FontSize="11"/>
                 </StackPanel>
-            </StackPanel>
+
+                <Image Grid.Column="1" 
+               Source="{Binding IconPath}" 
+               Width="48" Height="48" 
+               Margin="25,0,0,0" 
+               VerticalAlignment="Top"
+               HorizontalAlignment="Right"
+               Stretch="Uniform"/>
+            </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="AccountTemplate">
@@ -250,28 +258,33 @@
 
                 <StackPanel Grid.Column="0" Orientation="Vertical">
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-                <Run Text="Selected Server: "/>
-                <Run Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="Selected Server: "/>
+        <Run Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-                <Run Text="Selected Expansion: "/>
-                <Run Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="Selected Expansion: "/>
+        <Run Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-                <Run Text="Selected Account: "/>
-                <Run Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="Selected Account: "/>
+        <Run Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-                <Run Text="Selected Character: "/>
-                <Run Text="{Binding SelectedCharacter.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-                <Run Text="{Binding SelectedCharacter.Level, StringFormat=' (Level {0})', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
-                <Run Text="{Binding SelectedCharacter.Class, StringFormat=' {0}', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="Selected Character: "/>
+        <Run Text="{Binding SelectedCharacter.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="{Binding SelectedCharacter.Level, StringFormat=' (Level {0})', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
+        <Run Text="{Binding SelectedCharacter.Class, StringFormat=' {0}', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="SaveConfigButton" Content="Save Configuration" Style="{StaticResource WoWButtonStyle}" 
                     Command="{Binding SaveConfigCommand}" Margin="5,0"/>
+                    <!-- Add Debug OCR Overlay Button Here -->
+                    <Button x:Name="DebugOcrOverlayButton" Content="Debug OCR Overlay" 
+                    Style="{StaticResource WoWButtonStyle}" 
+                    Command="{Binding DebugOcrOverlayCommand}"
+                    Margin="5,0"/>
                     <Button x:Name="LaunchGameButton" Content="LAUNCH GAME" FontSize="16" 
                     Style="{StaticResource WoWButtonStyle}" Command="{Binding LaunchGameCommand}"
                     Padding="20,10" Margin="5,0"/>
