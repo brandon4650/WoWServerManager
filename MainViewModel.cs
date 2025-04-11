@@ -29,8 +29,10 @@ using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using DrawingSize = System.Drawing.Size;
 
+
 namespace WoWServerManager
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public class MainViewModel : INotifyPropertyChanged
     {
         private ObservableCollection<Server> _servers;
@@ -131,6 +133,8 @@ namespace WoWServerManager
         public ICommand LaunchGameCommand { get; }
         public ICommand SaveConfigCommand { get; }
 
+        public ICommand DebugOcrOverlayCommand { get; }
+
 
         public MainViewModel()
         {
@@ -158,6 +162,8 @@ namespace WoWServerManager
 
             LaunchGameCommand = new RelayCommand(_ => LaunchGame(), _ => SelectedExpansion != null && SelectedAccount != null);
             SaveConfigCommand = new RelayCommand(_ => SaveConfig());
+
+            DebugOcrOverlayCommand = new RelayCommand(_ => VisualizeSelectionArea());
         }
 
         private void LoadConfig()
@@ -235,6 +241,78 @@ namespace WoWServerManager
             catch (Exception ex)
             {
                 MessageBox.Show($"Error saving configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public void VisualizeSelectionArea()
+        {
+            try
+            {
+                // Get screen bounds
+                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
+
+                // Calculate the area where character list appears
+                int captureWidth = (int)(screenBounds.Width * 0.3);  // 30% of screen width
+                int captureHeight = (int)(screenBounds.Height * 0.7); // 70% of screen height
+                int captureX = screenBounds.Width - captureWidth;    // Right side
+                int captureY = (int)(screenBounds.Height * 0.15);    // Slightly below top
+
+                // Create a visualization window
+                var visualWindow = new Window
+                {
+                    Title = "OCR Debug Overlay",
+                    Width = screenBounds.Width,
+                    Height = screenBounds.Height,
+                    WindowStyle = WindowStyle.None,
+                    AllowsTransparency = true,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(1, 0, 0, 0)),
+                    Topmost = true
+                };
+
+                // Create a canvas to draw on
+                var canvas = new System.Windows.Controls.Canvas();
+                visualWindow.Content = canvas;
+
+                // Draw the OCR area rectangle
+                var rect = new System.Windows.Shapes.Rectangle
+                {
+                    Width = captureWidth,
+                    Height = captureHeight,
+                    Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red),
+                    StrokeThickness = 2,
+                    Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 255, 0, 0))
+                };
+                System.Windows.Controls.Canvas.SetLeft(rect, captureX);
+                System.Windows.Controls.Canvas.SetTop(rect, captureY);
+                canvas.Children.Add(rect);
+
+                // Add text label
+                var textBlock = new System.Windows.Controls.TextBlock
+                {
+                    Text = "OCR Capture Area",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold
+                };
+                System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
+                System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
+                canvas.Children.Add(textBlock);
+
+                // Show the window
+                visualWindow.Show();
+
+                // Auto-close after 5 seconds
+                var timer = new System.Threading.Timer((_) =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        visualWindow.Close();
+                    });
+                }, null, 5000, System.Threading.Timeout.Infinite);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error visualizing selection area: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -590,11 +668,11 @@ namespace WoWServerManager
 
         private async Task SelectCharacterByName(string characterName)
         {
-            const int maxAttempts = 15;          // Increased attempts for better chance of finding
+            const int maxAttempts = 15;
             const double highConfidenceThreshold = 0.85;
             const double mediumConfidenceThreshold = 0.65;
-            const int initialDelay = 1500;       // Longer initial delay to ensure character screen is loaded
-            const int navigationDelay = 600;     // Delay between navigation key presses
+            const int initialDelay = 1500;
+            const int navigationDelay = 600;
 
             if (SelectedAccount?.SelectedCharacter == null)
             {
@@ -605,7 +683,6 @@ namespace WoWServerManager
             Character target = SelectedAccount.SelectedCharacter;
             Console.WriteLine($"Searching for: {target.Name} (Lvl {target.Level} {target.Class})");
 
-            // Potential improvement: Wait for actual character selection screen to appear using image recognition
             await Task.Delay(initialDelay);
 
             // Go to top of character list
@@ -618,6 +695,22 @@ namespace WoWServerManager
             string bestMatchText = "";
             List<(int position, double score, string text)> matches = new List<(int, double, string)>();
 
+            // First, check if the currently selected character (highlighted) is the one we want
+            string currentHighlightText = CaptureScreenText();
+            double currentScore = CalculateCharacterMatchScore(currentHighlightText, target);
+
+            Console.WriteLine($"Initial highlighted character: Score {currentScore:F2}\nText: {currentHighlightText}");
+
+            // If the currently selected character is a good match, use it immediately
+            if (currentScore >= highConfidenceThreshold)
+            {
+                Console.WriteLine($"Initial character is a match - selecting");
+                SendKeys.SendWait("{ENTER}");
+                await Task.Delay(1000);
+                return;
+            }
+
+            // Otherwise, search through the list
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 // Take multiple samples at each position for better accuracy
@@ -673,23 +766,6 @@ namespace WoWServerManager
             // Log debug information for troubleshooting
             LogCharacterSelectionDebug(target, matches);
 
-            // Analyze all matches for best candidate
-            var sortedMatches = matches.OrderByDescending(m => m.score).ToList();
-
-            // Check if we have multiple good candidates
-            if (sortedMatches.Count >= 2 &&
-                sortedMatches[0].score >= mediumConfidenceThreshold &&
-                sortedMatches[1].score >= mediumConfidenceThreshold * 0.9)
-            {
-                // If the top two candidates are close in score, prefer the one with class and level match
-                if (TryScoringClassAndLevel(sortedMatches[0].text, sortedMatches[1].text, target, out int betterPosition))
-                {
-                    bestPosition = betterPosition == 0 ? sortedMatches[0].position : sortedMatches[1].position;
-                    bestScore = betterPosition == 0 ? sortedMatches[0].score : sortedMatches[1].score;
-                    bestMatchText = betterPosition == 0 ? sortedMatches[0].text : sortedMatches[1].text;
-                }
-            }
-
             // Fallback to best match if reasonable
             if (bestScore >= mediumConfidenceThreshold && bestPosition >= 0)
             {
@@ -712,10 +788,58 @@ namespace WoWServerManager
                 return;
             }
 
-            // Final fallback
+            // Final fallback - try with just the names
+            var nameOnlyMatch = matches.OrderByDescending(m =>
+                CalculateNameOnlyMatchScore(m.text, target.Name)).FirstOrDefault();
+
+            if (nameOnlyMatch.position >= 0)
+            {
+                Console.WriteLine($"Name-only match found at position {nameOnlyMatch.position}");
+
+                // Return to top
+                SendKeys.SendWait("{HOME}");
+                await Task.Delay(1000);
+
+                // Navigate to matched position
+                for (int i = 0; i < nameOnlyMatch.position; i++)
+                {
+                    SendKeys.SendWait("{DOWN}");
+                    await Task.Delay(400);
+                }
+
+                SendKeys.SendWait("{ENTER}");
+                await Task.Delay(1000);
+                return;
+            }
+
+            // Ultimate fallback
             Console.WriteLine("No good match found - selecting current character");
             SendKeys.SendWait("{ENTER}");
         }
+
+        private double CalculateNameOnlyMatchScore(string text, string targetName)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(targetName))
+                return 0;
+
+            // Simple case - exact name in the text
+            if (text.ToLower().Contains(targetName.ToLower()))
+                return 1.0;
+
+            // Check for name parts
+            double score = 0;
+            string[] parts = targetName.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                if (part.Length >= 3 && text.ToLower().Contains(part.ToLower()))
+                {
+                    score += 0.5 / parts.Length;
+                }
+            }
+
+            return score;
+        }
+
 
         // Helper method to determine the better match when considering class and level
         private bool TryScoringClassAndLevel(string text1, string text2, Character target, out int betterPosition)
@@ -762,10 +886,10 @@ namespace WoWServerManager
                     Directory.CreateDirectory(debugDirectory);
                 }
 
-                // Get screen bounds (focus on right side where character list appears)
+                // Get screen bounds
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
-                // Calculate capture area - these values work well for 1920x1080
+                // Calculate capture area for the character list (right side of screen)
                 int captureWidth = (int)(screenBounds.Width * 0.3);  // 30% of screen width
                 int captureHeight = (int)(screenBounds.Height * 0.7); // 70% of screen height
                 int captureX = screenBounds.Width - captureWidth;    // Right side
@@ -792,11 +916,37 @@ namespace WoWServerManager
                     // Save the screenshot for debugging
                     bitmap.Save(debugImagePath, ImageFormat.Png);
 
-                    // Convert to EmguCV Image format
-                    using (Image<Bgr, byte> emguImage = bitmap.ToImage<Bgr>())
+                    // Load the captured image with EmguCV
+                    using (Image<Bgr, byte> emguImage = new Image<Bgr, byte>(debugImagePath))
                     {
+                        // Try to detect the highlighted row (gold/yellow selection)
+                        Rectangle? highlightedArea = DetectHighlightedRow(emguImage);
+
+                        Image<Bgr, byte> regionOfInterest;
+
+                        if (highlightedArea.HasValue)
+                        {
+                            // If we found a highlighted area, crop to that area
+                            Rectangle roi = highlightedArea.Value;
+
+                            // Save the highlighted region for debugging
+                            string highlightedPath = Path.Combine(debugDirectory, $"highlighted_{timestamp}.png");
+                            using (Image<Bgr, byte> highlightedImage = emguImage.Copy(roi))
+                            {
+                                highlightedImage.Save(highlightedPath);
+
+                                // Use the highlighted region for OCR processing
+                                regionOfInterest = highlightedImage.Clone();
+                            }
+                        }
+                        else
+                        {
+                            // If no highlight detected, use the entire image
+                            regionOfInterest = emguImage.Clone();
+                        }
+
                         // Process image with EmguCV for better OCR results
-                        var processedImage = PreprocessImageWithEmguCV(emguImage);
+                        var processedImage = PreprocessImageWithEmguCV(regionOfInterest);
 
                         string processedImagePath = Path.Combine(debugDirectory, $"ocr_processed_{timestamp}.png");
                         processedImage.Save(processedImagePath);
@@ -850,6 +1000,90 @@ namespace WoWServerManager
             }
         }
 
+        private Rectangle? DetectHighlightedRow(Image<Bgr, byte> image)
+        {
+            try
+            {
+                // Convert to HSV for better color detection
+                using (Image<Hsv, byte> hsvImage = image.Convert<Hsv, byte>())
+                {
+                    // Gold/yellow highlight detection ranges
+                    // In HSV, gold color is around H: 40-60, S: 180-255, V: 180-255
+                    Hsv lowerBound = new Hsv(35, 100, 150);
+                    Hsv upperBound = new Hsv(65, 255, 255);
+
+                    // Create a binary mask for the gold color
+                    using (Image<Gray, byte> mask = hsvImage.InRange(lowerBound, upperBound))
+                    {
+                        // Save mask for debugging
+                        string debugDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
+                        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmssff");
+                        mask.Save(Path.Combine(debugDirectory, $"highlight_mask_{timestamp}.png"));
+
+                        // Find rows with golden pixels (highlighting)
+                        int[] rowsWithHighlight = new int[image.Height];
+                        int maxHighlightCount = 0;
+                        int bestRowStart = 0;
+                        int consecutiveRows = 0;
+
+                        // Count golden pixels in each row
+                        for (int y = 0; y < mask.Height; y++)
+                        {
+                            int highlightPixels = 0;
+                            for (int x = 0; x < mask.Width; x++)
+                            {
+                                if (mask.Data[y, x, 0] > 0)
+                                {
+                                    highlightPixels++;
+                                }
+                            }
+
+                            rowsWithHighlight[y] = highlightPixels;
+
+                            // If we have a significant number of golden pixels in this row
+                            if (highlightPixels > 20) // Threshold to ignore noise
+                            {
+                                consecutiveRows++;
+
+                                // Track the best run of consecutive rows with highlights
+                                if (consecutiveRows > maxHighlightCount)
+                                {
+                                    maxHighlightCount = consecutiveRows;
+                                    bestRowStart = y - consecutiveRows + 1;
+                                }
+                            }
+                            else
+                            {
+                                consecutiveRows = 0;
+                            }
+                        }
+
+                        // If we found a good highlight area
+                        if (maxHighlightCount >= 5) // At least 5 rows with highlighting (adjust as needed)
+                        {
+                            // Create a rectangle around the highlighted row
+                            // Make it slightly taller than the exact highlight to ensure we get all text
+                            int rowHeight = maxHighlightCount + 4; // Add some padding
+
+                            // Make sure we don't go out of bounds
+                            int startY = Math.Max(0, bestRowStart - 2); // Add padding at top
+                            rowHeight = Math.Min(rowHeight, image.Height - startY);
+
+                            return new Rectangle(0, startY, image.Width, rowHeight);
+                        }
+                    }
+                }
+
+                // No strong highlight found
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error detecting highlighted row: {ex.Message}");
+                return null;
+            }
+        }
+
         // Convert EmguCV Image to Pix format for Tesseract
         private Pix ConvertEmguCvImageToPix(Image<Gray, byte> image)
         {
@@ -863,10 +1097,13 @@ namespace WoWServerManager
         // Enhanced image preprocessing with EmguCV
         private Image<Gray, byte> PreprocessImageWithEmguCV(Image<Bgr, byte> originalImage)
         {
-            // 1. Convert to grayscale
+            // Convert to grayscale
             Image<Gray, byte> grayImage = originalImage.Convert<Gray, byte>();
 
-            // 2. Adaptive thresholding - works better for text with varying backgrounds
+            // Enhance contrast
+            CvInvoke.EqualizeHist(grayImage, grayImage);
+
+            // Adaptive thresholding - works better for text with varying backgrounds
             Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
             CvInvoke.AdaptiveThreshold(
                 grayImage,
@@ -875,37 +1112,19 @@ namespace WoWServerManager
                 AdaptiveThresholdType.GaussianC,
                 ThresholdType.Binary,
                 11, // Block size
-                5   // C value
+                7   // Slightly increased C value for better text separation
             );
 
-            // 3. Apply morphological operations to clean up the image
+            // Apply morphological operations to clean up the image
             var element = CvInvoke.GetStructuringElement(ElementShape.Rectangle,
                                                       new DrawingSize(3, 3),
                                                       new Point(-1, -1));
 
             // Opening operation (erosion followed by dilation) to remove noise
             CvInvoke.MorphologyEx(thresholdImage, thresholdImage, MorphOp.Open, element,
-                                 new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+                                new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
 
-            // 4. Apply Gaussian blur to smooth out edges
-            CvInvoke.GaussianBlur(thresholdImage, thresholdImage, new DrawingSize(3, 3), 0);
-
-            // 5. Apply contrast enhancement
-            Image<Gray, byte> enhancedImage = thresholdImage.Clone();
-
-            // Optional: Apply contrast stretching
-            // This helps when characters have low contrast against background
-            double min = 0, max = 255;
-            Point minLoc = new Point(), maxLoc = new Point();
-            CvInvoke.MinMaxLoc(enhancedImage, ref min, ref max, ref minLoc, ref maxLoc);
-
-            if (max > min) // Avoid division by zero
-            {
-                // Normalize the image to improve contrast
-                CvInvoke.Normalize(enhancedImage, enhancedImage, 0, 255, NormType.MinMax);
-            }
-
-            return enhancedImage;
+            return thresholdImage;
         }
 
         // Improved character matching logic
@@ -1143,7 +1362,7 @@ namespace WoWServerManager
                     return "File not found!";
                 }
 
-                // Load image with EmguCV
+                // Load image with EmguCV - this way is compatible with all versions
                 using (Image<Bgr, byte> image = new Image<Bgr, byte>(imagePath))
                 {
                     // Process with same pipeline as real OCR
@@ -1222,6 +1441,13 @@ namespace WoWServerManager
                 int captureY = (int)(screenBounds.Height * 0.15);
                 Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
 
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
+                if (!Directory.Exists(debugDir))
+                    Directory.CreateDirectory(debugDir);
+
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string tempImagePath = Path.Combine(debugDir, $"temp_capture_{timestamp}.png");
+
                 using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
                 {
                     using (Graphics g = Graphics.FromImage(bitmap))
@@ -1232,14 +1458,17 @@ namespace WoWServerManager
                             captureBounds.Size);
                     }
 
-                    // Convert to EmguCV Image
-                    using (Image<Bgr, byte> emguImage = bitmap.ToImage<Bgr, byte>())
+                    // Save to temp file first
+                    bitmap.Save(tempImagePath, ImageFormat.Png);
+
+                    // Load from file instead of direct conversion
+                    using (Image<Bgr, byte> emguImage = new Image<Bgr, byte>(tempImagePath))
                     {
                         // Convert to grayscale
                         Image<Gray, byte> grayImage = emguImage.Convert<Gray, byte>();
 
                         // Apply custom parameters
-                        var thresholdImage = new Image<Gray, byte>(grayImage.Size);
+                        Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
                         CvInvoke.AdaptiveThreshold(
                             grayImage,
                             thresholdImage,
@@ -1250,8 +1479,6 @@ namespace WoWServerManager
                             cValue
                         );
 
-                        string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
-                        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                         string imagePath = Path.Combine(debugDir, $"params_b{blockSize}_c{cValue}_{timestamp}.png");
                         thresholdImage.Save(imagePath);
 
@@ -1273,6 +1500,12 @@ namespace WoWServerManager
                                 }
                             }
                         }
+                    }
+
+                    // Clean up the temp file
+                    if (File.Exists(tempImagePath))
+                    {
+                        try { File.Delete(tempImagePath); } catch { }
                     }
                 }
             }
@@ -2039,13 +2272,4 @@ namespace WoWServerManager
         }
     }
 
-    // Extension method to convert Bitmap to EmguCV Image
-    public static class BitmapExtensions
-    {
-        public static Image<TColor, byte> ToImage<TColor>(this Bitmap bitmap)
-            where TColor : struct, IColor
-        {
-            return new Image<TColor, byte>(bitmap);
-        }
-    }
 }
