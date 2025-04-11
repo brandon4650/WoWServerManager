@@ -31,6 +31,7 @@ using DrawingSize = System.Drawing.Size;
 using WpfApplication = System.Windows.Application;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
+using System.Text.RegularExpressions;
 
 namespace WoWServerManager
 {
@@ -1168,6 +1169,10 @@ namespace WoWServerManager
             const int initialDelay = 1500;
             const int navigationDelay = 600;
 
+            // Define character highlight color ranges in HSV
+            Hsv goldColorLower = new Hsv(20, 100, 150);  // Lower bound for gold/yellow
+            Hsv goldColorUpper = new Hsv(70, 255, 255);  // Upper bound for gold/yellow
+
             if (SelectedAccount?.SelectedCharacter == null)
             {
                 SendKeys.SendWait("{ENTER}");
@@ -1177,9 +1182,17 @@ namespace WoWServerManager
             Character target = SelectedAccount.SelectedCharacter;
             Console.WriteLine($"Searching for: {target.Name} (Lvl {target.Level} {target.Class})");
 
+            // Give WoW time to fully load the character selection screen
             await Task.Delay(initialDelay);
 
-            // Go to top of character list
+            // First, take a screenshot to analyze what characters are visible
+            string initialScreenText = CaptureScreenText();
+            Console.WriteLine($"Initial screen text:\n{initialScreenText}");
+
+            // Check if target character name appears in the initial screen
+            bool targetIsVisible = initialScreenText.IndexOf(target.Name, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            // Start at the top of the character list
             SendKeys.SendWait("{HOME}");
             await Task.Delay(1200);
 
@@ -1204,17 +1217,37 @@ namespace WoWServerManager
                 return true; // High confidence match
             }
 
+            // Use pattern matching to check for exact character name in the highlighted text
+            if (ContainsExactCharacterName(currentHighlightText, target.Name))
+            {
+                Console.WriteLine($"Found exact character name in highlighted text - selecting");
+                SendKeys.SendWait("{ENTER}");
+                await Task.Delay(1000);
+                return true;
+            }
+
             // Otherwise, search through the list
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 // Take multiple samples at each position for better accuracy
                 double positionScore = 0;
                 string combinedText = "";
+                bool foundExactName = false;
 
                 // Take 2 samples at each position to improve reliability
                 for (int sample = 0; sample < 2; sample++)
                 {
                     string ocrText = CaptureScreenText();
+
+                    // Check for exact character name match first
+                    if (ContainsExactCharacterName(ocrText, target.Name))
+                    {
+                        foundExactName = true;
+                        positionScore = 1.0;
+                        combinedText = ocrText;
+                        break; // No need for second sample if we found an exact match
+                    }
+
                     double score = CalculateCharacterMatchScore(ocrText, target);
 
                     positionScore = Math.Max(positionScore, score);
@@ -1243,10 +1276,19 @@ namespace WoWServerManager
                     bestMatchText = combinedText;
                 }
 
+                // If we found an exact name match, select immediately
+                if (foundExactName)
+                {
+                    Console.WriteLine($"Exact name match found at position {attempt} - selecting");
+                    SendKeys.SendWait("{ENTER}");
+                    await Task.Delay(1000);
+                    return true;
+                }
+
                 // High confidence - select immediately
                 if (positionScore >= highConfidenceThreshold)
                 {
-                    Console.WriteLine($"Exact match found at position {attempt} - selecting");
+                    Console.WriteLine($"High confidence match found at position {attempt} - selecting");
                     SendKeys.SendWait("{ENTER}");
                     await Task.Delay(1000);
                     return true; // High confidence match
@@ -1312,6 +1354,42 @@ namespace WoWServerManager
             return false; // Could not find a good match
         }
 
+        // New helper method to check for exact character name match
+        private bool ContainsExactCharacterName(string text, string characterName)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(characterName))
+                return false;
+
+            // Convert to lowercase for case-insensitive comparison
+            string textLower = text.ToLower();
+            string nameLower = characterName.ToLower();
+
+            // Method 1: Direct contains check
+            if (textLower.Contains(nameLower))
+                return true;
+
+            // Method 2: Check for name with word boundaries
+            string pattern = $@"\b{Regex.Escape(nameLower)}\b";
+            if (Regex.IsMatch(textLower, pattern, RegexOptions.IgnoreCase))
+                return true;
+
+            // Method 3: Check for character name followed by common patterns in character selection screen
+            string[] postfixPatterns = {
+        "level", "lvl", "lv",
+        "warrior", "paladin", "hunter", "rogue", "priest", "death knight",
+        "shaman", "mage", "warlock", "monk", "druid", "demon hunter", "evoker"
+    };
+
+            foreach (var postfix in postfixPatterns)
+            {
+                // Check for "CharacterName Level" or "CharacterName Mage" patterns
+                if (textLower.Contains($"{nameLower} {postfix}"))
+                    return true;
+            }
+
+            return false;
+        }
+
         private double CalculateNameOnlyMatchScore(string text, string targetName)
         {
             if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(targetName))
@@ -1369,21 +1447,22 @@ namespace WoWServerManager
 
         private static string GetExpansionIconPath(string expansionName)
         {
-            expansionName = expansionName.ToLower();
+            expansionName = expansionName?.ToLower() ?? "";
 
+            // Use pack URIs for proper resource loading in WPF
             return expansionName switch
             {
-                string s when s.Contains("classic") => "/Resources/Icons/classic_icon.png",
-                string s when s.Contains("burning crusade") => "/Resources/Icons/tbc_icon.png",
-                string s when s.Contains("lich king") => "/Resources/Icons/wotlk_icon.png",
-                string s when s.Contains("cataclysm") => "/Resources/Icons/cata_icon.png",
-                string s when s.Contains("pandaria") => "/Resources/Icons/mop_icon.png",
-                string s when s.Contains("draenor") => "/Resources/Icons/wod_icon.png",
-                string s when s.Contains("legion") => "/Resources/Icons/legion_icon.png",
-                string s when s.Contains("azeroth") => "/Resources/Icons/bfa_icon.png",
-                string s when s.Contains("shadowlands") => "/Resources/Icons/shadowlands_icon.png",
-                string s when s.Contains("dragonflight") => "/Resources/Icons/dragonflight_icon.png",
-                _ => "/Resources/Icons/default_icon.png"
+                string s when s.Contains("classic") => "pack://application:,,,/Resources/Icons/classic_icon.png",
+                string s when s.Contains("burning crusade") => "pack://application:,,,/Resources/Icons/tbc_icon.png",
+                string s when s.Contains("lich king") => "pack://application:,,,/Resources/Icons/wotlk_icon.png",
+                string s when s.Contains("cataclysm") => "pack://application:,,,/Resources/Icons/cata_icon.png",
+                string s when s.Contains("pandaria") => "pack://application:,,,/Resources/Icons/mop_icon.png",
+                string s when s.Contains("draenor") => "pack://application:,,,/Resources/Icons/wod_icon.png",
+                string s when s.Contains("legion") => "pack://application:,,,/Resources/Icons/legion_icon.png",
+                string s when s.Contains("azeroth") => "pack://application:,,,/Resources/Icons/bfa_icon.png",
+                string s when s.Contains("shadowlands") => "pack://application:,,,/Resources/Icons/shadowlands_icon.png",
+                string s when s.Contains("dragonflight") => "pack://application:,,,/Resources/Icons/dragonflight_icon.png",
+                _ => "pack://application:,,,/Resources/Icons/default_icon.png"
             };
         }
 
@@ -1404,7 +1483,7 @@ namespace WoWServerManager
                 // Get screen bounds
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
-                // Use exact coordinates from your screenshots
+                // Use exact coordinates from the screenshot - already verified as correct
                 int captureX = 2010;
                 int captureY = 62;
                 int captureWidth = 380;
@@ -1427,6 +1506,7 @@ namespace WoWServerManager
                 if (captureWidth < 50 || captureHeight < 50)
                 {
                     // Fallback to percentage-based calculation if exact coordinates don't work
+                    // This handles different screen resolutions
                     captureWidth = (int)(screenBounds.Width * 0.20);
                     captureHeight = (int)(screenBounds.Height * 0.70);
                     captureX = screenBounds.Width - captureWidth - 20;
@@ -1497,10 +1577,14 @@ namespace WoWServerManager
                         {
                             using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
                             {
-                                // Configure Tesseract for game text
-                                engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
+                                // Configure Tesseract for game text - expand whitelist for better recognition
+                                engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
                                 engine.SetVariable("tessedit_pageseg_mode", "6"); // Assume a single uniform block of text
                                 engine.SetVariable("tessedit_ocr_engine_mode", "2"); // LSTM only
+
+                                // Add specific game text optimization
+                                engine.SetVariable("language_model_penalty_non_dict_word", "0.1"); // Lower penalty for non-dictionary words (character names)
+                                engine.SetVariable("language_model_penalty_case", "0.1"); // Lower penalty for case issues
 
                                 // Convert EmguCV image to a format Tesseract can use
                                 using (var img = ConvertEmguCvImageToPix(processedImage))
@@ -1637,10 +1721,16 @@ namespace WoWServerManager
             // Convert to grayscale
             Image<Gray, byte> grayImage = originalImage.Convert<Gray, byte>();
 
-            // Enhance contrast
-            CvInvoke.EqualizeHist(grayImage, grayImage);
+            // Apply bilateral filter to reduce noise while preserving edges (better for text)
+            CvInvoke.BilateralFilter(grayImage, grayImage, 9, 75, 75);
 
-            // Adaptive thresholding - adjusted parameters for your specific WoW client
+            // Enhance contrast using CLAHE (Contrast Limited Adaptive Histogram Equalization)
+            var clahe = new Emgu.CV.CvInvoke.Mat();
+            var claheTool = CvInvoke.CreateCLAHE(2.0, new DrawingSize(8, 8));
+            claheTool.Apply(grayImage, clahe);
+            grayImage = new Image<Gray, byte>(clahe.Bitmap);
+
+            // Adaptive thresholding with optimized parameters for WoW UI
             Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
             CvInvoke.AdaptiveThreshold(
                 grayImage,
@@ -1648,13 +1738,13 @@ namespace WoWServerManager
                 255.0,
                 AdaptiveThresholdType.GaussianC,
                 ThresholdType.Binary,
-                13, // Increased block size for ultrawide monitor
-                8   // Adjusted C value for your specific WoW font
+                11, // Block size adjusted for WoW font
+                9   // C value adjusted for gold highlight contrast
             );
 
-            // Apply morphological operations to clean up the image
+            // Apply morphological operations to clean up the text
             var element = CvInvoke.GetStructuringElement(ElementShape.Rectangle,
-                                                      new DrawingSize(3, 3),
+                                                      new DrawingSize(2, 2), // Smaller kernel to preserve small text details
                                                       new Point(-1, -1));
 
             // Opening operation (erosion followed by dilation) to remove noise
@@ -1674,10 +1764,15 @@ namespace WoWServerManager
             string targetName = character.Name.ToLower();
             string targetClass = character.Class?.ToLower() ?? "";
 
-            // Name matching (more strict) - use improved fuzzy matching
-            if (lowerText.Contains(targetName))
+            // Name matching with higher weight
+            // Exact name match gets highest score
+            if (ContainsExactCharacterName(lowerText, targetName))
             {
-                score += 0.7; // Strong match for exact name
+                score += 0.8; // Even higher weight for exact name match
+            }
+            else if (lowerText.Contains(targetName))
+            {
+                score += 0.7; // Strong match for name contained in text
             }
             else
             {
@@ -1686,37 +1781,65 @@ namespace WoWServerManager
                 score += nameScore * 0.5; // Weight partial matches
             }
 
-            // Class matching (more strict)
+            // Class matching with enhanced pattern detection
             if (!string.IsNullOrWhiteSpace(character.Class))
             {
+                // Try different class formats (Mage, mage, MAG, etc.)
                 if (lowerText.Contains(targetClass))
                 {
                     score += 0.2;
                 }
                 else
                 {
-                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
-                    string classAbbrev = character.Class.Length > 3
-                        ? character.Class.Substring(0, 3).ToLower()
-                        : character.Class.ToLower();
+                    // Common class abbreviations and variations
+                    var classVariations = new List<string>();
 
-                    if (lowerText.Contains(classAbbrev))
+                    // Standard abbreviation (first 3 chars)
+                    if (targetClass.Length > 3)
+                        classVariations.Add(targetClass.Substring(0, 3));
+
+                    // Class-specific abbreviations
+                    switch (targetClass)
                     {
-                        score += 0.1;
+                        case "warrior": classVariations.Add("war"); break;
+                        case "paladin": classVariations.Add("pal"); classVariations.Add("pally"); break;
+                        case "hunter": classVariations.Add("hunt"); break;
+                        case "rogue": classVariations.Add("rog"); break;
+                        case "priest": classVariations.Add("pri"); break;
+                        case "death knight": classVariations.Add("dk"); classVariations.Add("death"); break;
+                        case "shaman": classVariations.Add("sham"); classVariations.Add("shammy"); break;
+                        case "mage": classVariations.Add("mag"); break;
+                        case "warlock": classVariations.Add("lock"); classVariations.Add("wlock"); break;
+                        case "monk": classVariations.Add("mnk"); break;
+                        case "druid": classVariations.Add("dru"); break;
+                        case "demon hunter": classVariations.Add("dh"); classVariations.Add("demon"); break;
+                        case "evoker": classVariations.Add("evo"); break;
+                    }
+
+                    // Check for class variations
+                    foreach (var variation in classVariations)
+                    {
+                        if (lowerText.Contains(variation))
+                        {
+                            score += 0.15;
+                            break;
+                        }
                     }
                 }
             }
 
-            // Level matching (with various formats)
+            // Level matching (with expanded formats)
             string[] levelPatterns = {
-                $"level {character.Level}",
-                $"lvl {character.Level}",
-                $"lvl{character.Level}",
-                $"level{character.Level}",
-                $"lv {character.Level}",
-                $"lv{character.Level}",
-                $"{character.Level}"
-            };
+        $"level {character.Level}",
+        $"lvl {character.Level}",
+        $"lvl{character.Level}",
+        $"level{character.Level}",
+        $"lv {character.Level}",
+        $"lv{character.Level}",
+        $"level: {character.Level}",
+        $"level:{character.Level}",
+        $"{character.Level}"  // Raw number (might appear after name)
+    };
 
             foreach (var pattern in levelPatterns)
             {
@@ -1725,6 +1848,16 @@ namespace WoWServerManager
                     score += 0.15;
                     break;
                 }
+            }
+
+            // Pattern bonus: Look for the typical pattern in WoW character selection
+            // Format is usually "Name Level XX Class"
+            string fullPattern = $"{targetName.ToLower()} level {character.Level} {targetClass.ToLower()}";
+            string altPattern = $"{targetName.ToLower()} lvl {character.Level} {targetClass.ToLower()}";
+
+            if (lowerText.Contains(fullPattern) || lowerText.Contains(altPattern))
+            {
+                score += 0.15; // Bonus for matching the exact expected pattern
             }
 
             return Math.Min(score, 1.0);
@@ -1843,6 +1976,25 @@ namespace WoWServerManager
             catch (Exception ex)
             {
                 Console.WriteLine($"Error writing debug log: {ex.Message}");
+            }
+        }
+
+        private void EnsureIconDirectoriesExist()
+        {
+            try
+            {
+                string iconsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Icons");
+                if (!Directory.Exists(iconsPath))
+                {
+                    Directory.CreateDirectory(iconsPath);
+
+                    // Log directory creation
+                    Console.WriteLine($"Created icons directory at: {iconsPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating icons directory: {ex.Message}");
             }
         }
 
