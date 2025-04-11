@@ -1046,12 +1046,11 @@ namespace WoWServerManager
             return false;
         }
 
-        private string GetExpansionIconPath(string expansionName)
+        private static string GetExpansionIconPath(string expansionName)
         {
-            // Normalize the expansion name to handle variations
+            // Existing implementation remains the same
             expansionName = expansionName.ToLower();
 
-            // Map expansion names to icon paths
             return expansionName switch
             {
                 string s when s.Contains("classic") => "/Resources/Icons/classic_icon.png",
@@ -2165,7 +2164,7 @@ namespace WoWServerManager
                     // Set the icon path based on the selected expansion
                     if (nameComboBox.SelectedItem is string selectedExpansion)
                     {
-                        Expansion.IconPath = GetExpansionIconPath(selectedExpansion);
+                        Expansion.IconPath = MainViewModel.GetExpansionIconPath(selectedExpansion);
                     }
                 };
 
