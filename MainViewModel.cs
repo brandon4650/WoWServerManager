@@ -1048,7 +1048,6 @@ namespace WoWServerManager
 
         private static string GetExpansionIconPath(string expansionName)
         {
-            // Existing implementation remains the same
             expansionName = expansionName.ToLower();
 
             return expansionName switch
@@ -2164,7 +2163,13 @@ namespace WoWServerManager
                     // Set the icon path based on the selected expansion
                     if (nameComboBox.SelectedItem is string selectedExpansion)
                     {
-                        Expansion.IconPath = MainViewModel.GetExpansionIconPath(selectedExpansion);
+                        string iconPath = MainViewModel.GetExpansionIconPath(selectedExpansion);
+                        Expansion.IconPath = iconPath;
+
+                        // Debug output
+                        System.Diagnostics.Debug.WriteLine($"Selected Expansion: {selectedExpansion}");
+                        System.Diagnostics.Debug.WriteLine($"Icon Path: {iconPath}");
+                        System.Diagnostics.Debug.WriteLine($"File Exists: {System.IO.File.Exists(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, iconPath.TrimStart('/')))}");
                     }
                 };
 
