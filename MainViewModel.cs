@@ -28,7 +28,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using DrawingSize = System.Drawing.Size;
-
+using WpfApplication = System.Windows.Application;
 
 namespace WoWServerManager
 {
@@ -133,6 +133,8 @@ namespace WoWServerManager
         public ICommand LaunchGameCommand { get; }
         public ICommand SaveConfigCommand { get; }
 
+        public ICommand ShowHowToUseCommand { get; }
+
         public ICommand DebugOcrOverlayCommand { get; }
 
 
@@ -162,6 +164,8 @@ namespace WoWServerManager
 
             LaunchGameCommand = new RelayCommand(_ => LaunchGame(), _ => SelectedExpansion != null && SelectedAccount != null);
             SaveConfigCommand = new RelayCommand(_ => SaveConfig());
+
+            ShowHowToUseCommand = new RelayCommand(_ => ShowHowToUse());
 
             DebugOcrOverlayCommand = new RelayCommand(_ => VisualizeSelectionArea());
         }
@@ -304,7 +308,8 @@ namespace WoWServerManager
                 // Auto-close after 5 seconds
                 var timer = new System.Threading.Timer((_) =>
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    // Use WpfApplication (our alias) to avoid ambiguity
+                    WpfApplication.Current.Dispatcher.Invoke(() =>
                     {
                         visualWindow.Close();
                     });
@@ -520,6 +525,166 @@ namespace WoWServerManager
                 SelectedCharacter = SelectedAccount.Characters.FirstOrDefault();
                 SaveConfig();
             }
+        }
+
+        private void ShowHowToUse()
+        {
+            // Create the How To Use window
+            var howToUseWindow = new Window
+            {
+                Title = "How to Use WoW Server Manager",
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.CanResize,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 220, 220, 220)) // Light gray background instead of using the image
+            };
+
+            // Create a scroll viewer for the content
+            var scrollViewer = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Margin = new Thickness(20)
+            };
+
+            // Create a main panel for content
+            var mainPanel = new System.Windows.Controls.StackPanel
+            {
+                Margin = new Thickness(10)
+            };
+            scrollViewer.Content = mainPanel;
+
+            // Add the title
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "HOW TO USE THE WOW SERVER MANAGER",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 20)
+            });
+
+            // Add a warning about character selection
+            var warningBorder = new System.Windows.Controls.Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(255, 70, 70, 70)), // Darker gray matching screenshot
+                BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15),
+                Margin = new Thickness(0, 0, 0, 20),
+                CornerRadius = new CornerRadius(3)
+            };
+
+            var warningPanel = new System.Windows.Controls.StackPanel();
+            warningBorder.Child = warningPanel;
+
+            // Add the warning icon and text in a horizontal stack
+            var warningHeaderPanel = new System.Windows.Controls.StackPanel { Orientation = Orientation.Horizontal };
+
+            // Add the triangle warning icon
+            warningHeaderPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "⚠",
+                FontSize = 18,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Add the warning header text
+            warningHeaderPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "IMPORTANT NOTE",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            warningPanel.Children.Add(warningHeaderPanel);
+
+            // Add the warning message
+            warningPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Character selection is a work in progress and may not always be accurate. It is NOT required to add characters to use this application. You can simply input your server, expansion, and account details to use the login features.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                Margin = new Thickness(0, 10, 0, 0)
+            });
+
+            mainPanel.Children.Add(warningBorder);
+
+            // Add the sections explaining each part of the app with updated colors
+            AddHowToUseSection(mainPanel, "1. SERVERS",
+                "The Servers panel allows you to manage different WoW server connections. Each server can have multiple expansions.",
+                System.Windows.Media.Color.FromArgb(255, 70, 70, 70),  // Dark gray background
+                System.Windows.Media.Color.FromArgb(255, 255, 204, 0)); // Gold color
+
+            AddHowToUseSection(mainPanel, "2. EXPANSIONS",
+                "The Expansions panel lets you configure different WoW versions for each server. " +
+                "You must specify the launcher path and can adjust login delays to accommodate your system's performance.",
+                System.Windows.Media.Color.FromArgb(255, 70, 70, 70),
+                System.Windows.Media.Color.FromArgb(255, 255, 204, 0));
+
+            AddHowToUseSection(mainPanel, "3. ACCOUNTS",
+                "The Accounts panel stores your login credentials for each expansion. " +
+                "Your password is stored locally and used to automatically log you into the game.",
+                System.Windows.Media.Color.FromArgb(255, 70, 70, 70),
+                System.Windows.Media.Color.FromArgb(255, 255, 204, 0));
+
+            AddHowToUseSection(mainPanel, "4. CHARACTERS (OPTIONAL)",
+                "The Characters panel is OPTIONAL and allows you to store information about your characters. " +
+                "The character selection feature attempts to automatically select your character after login, " +
+                "but this feature may not always work perfectly. You can use the application without adding any characters.",
+                System.Windows.Media.Color.FromArgb(255, 70, 70, 70),
+                System.Windows.Media.Color.FromArgb(255, 255, 204, 0));
+
+            // Set the content and show the window
+            howToUseWindow.Content = scrollViewer;
+            howToUseWindow.ShowDialog();
+        }
+
+        // Helper method to add sections to the How To Use window
+        private void AddHowToUseSection(System.Windows.Controls.StackPanel parent, string title, string content,
+                                System.Windows.Media.Color backgroundColor, System.Windows.Media.Color borderColor)
+        {
+            var sectionBorder = new System.Windows.Controls.Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(backgroundColor),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(borderColor),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15),
+                Margin = new Thickness(0, 0, 0, 15),
+                CornerRadius = new CornerRadius(3)
+            };
+
+            var sectionPanel = new System.Windows.Controls.StackPanel();
+            sectionBorder.Child = sectionPanel;
+
+            sectionPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = title,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            sectionPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = content,
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White)
+            });
+
+            parent.Children.Add(sectionBorder);
         }
 
         // Add the PropertyChanged event and OnPropertyChanged method
