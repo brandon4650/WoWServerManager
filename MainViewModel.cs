@@ -36,6 +36,9 @@ using System.Windows.Controls;
 using System.Net.Http;
 using System.Text;
 
+// Add this to resolve Mat reference errors
+using Mat = Emgu.CV.Mat;
+
 namespace WoWServerManager
 {
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
@@ -347,9 +350,9 @@ namespace WoWServerManager
 
                                 // Add text label
                                 string label = iconFile.Replace("_icon.png", "").ToUpper();
-                                using (Font font = new Font("Arial", 8, FontStyle.Bold))
+                                using (Font font = new Font(new FontFamily("Arial"), 8, FontStyle.Bold))
                                 {
-                                    g.DrawString(label, font, Brushes.White,
+                                    g.DrawString(label, font, System.Drawing.Brushes.White,
                                                  new RectangleF(2, 24, 60, 20),
                                                  new StringFormat { Alignment = StringAlignment.Center });
                                 }
@@ -383,23 +386,32 @@ namespace WoWServerManager
                 Console.WriteLine($"Error ensuring default icons: {ex.Message}");
             }
         }
+        private void ProcessImageWithCLAHE(Mat inputMat, Mat outputMat)
+        {
+            // Create a CLAHE instance 
+            var clahe = CvInvoke.CreateCLAHE(2.0, new System.Drawing.Size(8, 8));
+
+            // Apply the CLAHE algorithm
+            clahe.Apply(inputMat, outputMat);
+        }
+
 
         // Helper method to generate colors for placeholder icons
-        private Color GetColorForIcon(string iconName)
+        private System.Drawing.Color GetColorForIcon(string iconName)
         {
             switch (iconName.ToLower())
             {
-                case "classic_icon.png": return Color.FromArgb(120, 120, 120);
-                case "tbc_icon.png": return Color.FromArgb(0, 120, 0);
-                case "wotlk_icon.png": return Color.FromArgb(0, 80, 160);
-                case "cata_icon.png": return Color.FromArgb(200, 60, 0);
-                case "mop_icon.png": return Color.FromArgb(0, 150, 150);
-                case "wod_icon.png": return Color.FromArgb(180, 40, 0);
-                case "legion_icon.png": return Color.FromArgb(0, 180, 0);
-                case "bfa_icon.png": return Color.FromArgb(0, 0, 180);
-                case "shadowlands_icon.png": return Color.FromArgb(100, 60, 160);
-                case "dragonflight_icon.png": return Color.FromArgb(200, 160, 0);
-                default: return Color.FromArgb(80, 80, 80);
+                case "classic_icon.png": return System.Drawing.Color.FromArgb(120, 120, 120);
+                case "tbc_icon.png": return System.Drawing.Color.FromArgb(0, 120, 0);
+                case "wotlk_icon.png": return System.Drawing.Color.FromArgb(0, 80, 160);
+                case "cata_icon.png": return System.Drawing.Color.FromArgb(200, 60, 0);
+                case "mop_icon.png": return System.Drawing.Color.FromArgb(0, 150, 150);
+                case "wod_icon.png": return System.Drawing.Color.FromArgb(180, 40, 0);
+                case "legion_icon.png": return System.Drawing.Color.FromArgb(0, 180, 0);
+                case "bfa_icon.png": return System.Drawing.Color.FromArgb(0, 0, 180);
+                case "shadowlands_icon.png": return System.Drawing.Color.FromArgb(100, 60, 160);
+                case "dragonflight_icon.png": return System.Drawing.Color.FromArgb(200, 160, 0);
+                default: return System.Drawing.Color.FromArgb(80, 80, 80);
             }
         }
 
@@ -2300,6 +2312,24 @@ namespace WoWServerManager
                 return Pix.LoadFromMemory(ImageToByteArray(bitmap));
             }
         }
+        private Image<Gray, byte> ApplyCLAHE(Image<Gray, byte> image, double clipLimit = 2.0, System.Drawing.Size gridSize = default)
+        {
+            if (gridSize == default)
+                gridSize = new System.Drawing.Size(8, 8);
+
+            // Create a new Mat to store the result
+            Mat result = new Mat();
+
+            // Create a CLAHE object (or whatever equivalent your EmguCV version supports)
+            var clahe = CvInvoke.CreateCLAHE(clipLimit, gridSize);
+
+            // Apply CLAHE
+            clahe.Apply(image.Mat, result);
+
+            // Convert back to Image<Gray, byte>
+            return new Image<Gray, byte>(result.Bitmap);
+        }
+
 
         // Enhanced image preprocessing with EmguCV
         private Image<Gray, byte> PreprocessImageWithEmguCV(Image<Bgr, byte> originalImage)
@@ -2310,11 +2340,8 @@ namespace WoWServerManager
             // Apply bilateral filter to reduce noise while preserving edges
             CvInvoke.BilateralFilter(grayImage, grayImage, 9, 75, 75);
 
-            // Enhance contrast using CLAHE
-            var clahe = new Emgu.CV.CvInvoke.Mat();
-            var claheTool = CvInvoke.CreateCLAHE(2.0, new DrawingSize(8, 8));
-            claheTool.Apply(grayImage, clahe);
-            grayImage = new Image<Gray, byte>(clahe.Bitmap);
+            // Enhance contrast using CLAHE with our custom implementation
+            grayImage = ApplyCLAHE(grayImage, 2.0, new System.Drawing.Size(8, 8));
 
             // Adaptive thresholding with calibrated parameters
             Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
@@ -2330,7 +2357,7 @@ namespace WoWServerManager
 
             // Apply morphological operations to clean up the text
             var element = CvInvoke.GetStructuringElement(ElementShape.Rectangle,
-                                                      new DrawingSize(2, 2), // Smaller kernel for text details
+                                                      new System.Drawing.Size(2, 2), // Smaller kernel for text details
                                                       new Point(-1, -1));
 
             // Opening operation to remove noise
@@ -2339,6 +2366,25 @@ namespace WoWServerManager
 
             return thresholdImage;
         }
+
+        private System.Windows.Controls.Image ConvertBitmapToWpfImage(Bitmap bitmap)
+        {
+            using (MemoryStream memory = new MemoryStream())
+            {
+                bitmap.Save(memory, ImageFormat.Png);
+                memory.Position = 0;
+                BitmapImage bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+
+                System.Windows.Controls.Image wpfImage = new System.Windows.Controls.Image();
+                wpfImage.Source = bitmapImage;
+                return wpfImage;
+            }
+        }
+
 
         // Add a method to detect character selection screen
         private Rectangle? FindCharacterSelectionArea(Image<Bgr, byte> image)
@@ -2872,11 +2918,12 @@ namespace WoWServerManager
         }
 
         // Keep the existing ImageToByteArray method
-        private byte[] ImageToByteArray(Image image)
+        private byte[] BitmapToByteArray(Bitmap bitmap)
         {
+            // Create a byte array to hold the image data
             using (MemoryStream ms = new MemoryStream())
             {
-                image.Save(ms, ImageFormat.Png);
+                bitmap.Save(ms, ImageFormat.Png);
                 return ms.ToArray();
             }
         }
