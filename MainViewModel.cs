@@ -63,10 +63,21 @@ namespace WoWServerManager
             get => _selectedServer;
             set
             {
-                _selectedServer = value;
+                // Allow deselection by clicking the selected item again
+                if (_selectedServer == value)
+                {
+                    _selectedServer = null;
+                    // Also clear any dependent selections
+                    SelectedExpansion = null;
+                }
+                else
+                {
+                    _selectedServer = value;
+                    OnPropertyChanged(nameof(Expansions));
+                    SelectedExpansion = Expansions.FirstOrDefault();
+                }
+
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(Expansions));
-                SelectedExpansion = Expansions.FirstOrDefault();
             }
         }
 
@@ -78,10 +89,21 @@ namespace WoWServerManager
             get => _selectedExpansion;
             set
             {
-                _selectedExpansion = value;
+                // Allow deselection by clicking the selected item again
+                if (_selectedExpansion == value)
+                {
+                    _selectedExpansion = null;
+                    // Also clear any dependent selections
+                    SelectedAccount = null;
+                }
+                else
+                {
+                    _selectedExpansion = value;
+                    OnPropertyChanged(nameof(Accounts));
+                    SelectedAccount = Accounts.FirstOrDefault();
+                }
+
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(Accounts));
-                SelectedAccount = Accounts.FirstOrDefault();
             }
         }
 
@@ -93,9 +115,22 @@ namespace WoWServerManager
             get => _selectedAccount;
             set
             {
-                _selectedAccount = value;
+                // Allow deselection by clicking the selected item again
+                if (_selectedAccount == value)
+                {
+                    _selectedAccount = value;
+                    // Also clear any dependent selections
+                    SelectedCharacter = null;
+                }
+                else
+                {
+                    _selectedAccount = value;
+                    OnPropertyChanged(nameof(Characters));
+                    // Don't auto-select a character - let the user choose explicitly
+                    SelectedCharacter = null;
+                }
+
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(Characters)); // Add this line
             }
         }
 
@@ -257,12 +292,16 @@ namespace WoWServerManager
                 // Get screen bounds
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
-                // Adjusted coordinates based on the screenshot
-                // Move X position left by about 400 pixels
-                int captureX = 2100; // Changed from 2519
+                // Start with coordinates focused on character list
+                int captureX = 2010;
                 int captureY = 62;
-                int captureWidth = 460;
-                int captureHeight = 1231;
+                int captureWidth = 380;
+                int captureHeight = 1031;
+
+                // Add debugging output
+                Console.WriteLine($"Setting capture area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}");
+                // Also add MessageBox to confirm values are being set
+                MessageBox.Show($"Setting capture coordinates to: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}");
 
                 // Ensure the capture area stays within screen bounds
                 if (captureX + captureWidth > screenBounds.Width)
@@ -275,16 +314,7 @@ namespace WoWServerManager
                     captureHeight = screenBounds.Height - captureY - 5;
                 }
 
-                // Validate that we still have a reasonable capture area
-                if (captureWidth < 50 || captureHeight < 50)
-                {
-                    captureWidth = (int)(screenBounds.Width * 0.20);
-                    captureHeight = (int)(screenBounds.Height * 0.70);
-                    captureX = screenBounds.Width - captureWidth - 400; // Move left by 400px
-                    captureY = (int)(screenBounds.Height * 0.15);
-                }
-
-                // Create a visualization window
+                // Create a visualization window with precise positioning
                 var visualWindow = new Window
                 {
                     Title = "OCR Debug Overlay",
@@ -327,10 +357,10 @@ namespace WoWServerManager
                 System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
                 canvas.Children.Add(textBlock);
 
-                // Add debug info label
+                // Add detailed debug info
                 var debugInfoBlock = new System.Windows.Controls.TextBlock
                 {
-                    Text = $"Capture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}",
+                    Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}",
                     Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Lime),
                     FontSize = 14,
                     FontWeight = FontWeights.Normal
@@ -339,7 +369,238 @@ namespace WoWServerManager
                 System.Windows.Controls.Canvas.SetTop(debugInfoBlock, 50);
                 canvas.Children.Add(debugInfoBlock);
 
-                // Add a close button
+                // Add navigation buttons to help adjust the position
+                // Left button
+                var leftButton = new System.Windows.Controls.Button
+                {
+                    Content = "◀",
+                    Width = 40,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                leftButton.Click += (s, e) => {
+                    captureX -= 50;
+                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
+                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(leftButton, 10);
+                System.Windows.Controls.Canvas.SetTop(leftButton, 90);
+                canvas.Children.Add(leftButton);
+
+                // Right button
+                var rightButton = new System.Windows.Controls.Button
+                {
+                    Content = "▶",
+                    Width = 40,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                rightButton.Click += (s, e) => {
+                    captureX += 50;
+                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
+                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(rightButton, 60);
+                System.Windows.Controls.Canvas.SetTop(rightButton, 90);
+                canvas.Children.Add(rightButton);
+
+                // Up button
+                var upButton = new System.Windows.Controls.Button
+                {
+                    Content = "▲",
+                    Width = 40,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                upButton.Click += (s, e) => {
+                    captureY -= 50;
+                    System.Windows.Controls.Canvas.SetTop(rect, captureY);
+                    System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(upButton, 110);
+                System.Windows.Controls.Canvas.SetTop(upButton, 90);
+                canvas.Children.Add(upButton);
+
+                // Down button
+                var downButton = new System.Windows.Controls.Button
+                {
+                    Content = "▼",
+                    Width = 40,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                downButton.Click += (s, e) => {
+                    captureY += 50;
+                    System.Windows.Controls.Canvas.SetTop(rect, captureY);
+                    System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(downButton, 160);
+                System.Windows.Controls.Canvas.SetTop(downButton, 90);
+                canvas.Children.Add(downButton);
+
+                // Wider button (increase width)
+                var widerButton = new System.Windows.Controls.Button
+                {
+                    Content = "Wider",
+                    Width = 60,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                widerButton.Click += (s, e) => {
+                    captureWidth += 20;
+                    rect.Width = captureWidth;
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(widerButton, 210);
+                System.Windows.Controls.Canvas.SetTop(widerButton, 90);
+                canvas.Children.Add(widerButton);
+
+                // Narrower button (decrease width)
+                var narrowerButton = new System.Windows.Controls.Button
+                {
+                    Content = "Narrower",
+                    Width = 70,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                narrowerButton.Click += (s, e) => {
+                    if (captureWidth > 50)
+                    { // Don't go too narrow
+                        captureWidth -= 20;
+                        rect.Width = captureWidth;
+                        debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                    }
+                };
+                System.Windows.Controls.Canvas.SetLeft(narrowerButton, 280);
+                System.Windows.Controls.Canvas.SetTop(narrowerButton, 90);
+                canvas.Children.Add(narrowerButton);
+
+                // Taller button (increase height)
+                var tallerButton = new System.Windows.Controls.Button
+                {
+                    Content = "Taller",
+                    Width = 60,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                tallerButton.Click += (s, e) => {
+                    captureHeight += 20;
+                    rect.Height = captureHeight;
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(tallerButton, 360);
+                System.Windows.Controls.Canvas.SetTop(tallerButton, 90);
+                canvas.Children.Add(tallerButton);
+
+                // Shorter button (decrease height)
+                var shorterButton = new System.Windows.Controls.Button
+                {
+                    Content = "Shorter",
+                    Width = 60,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                shorterButton.Click += (s, e) => {
+                    if (captureHeight > 50)
+                    { // Don't go too short
+                        captureHeight -= 20;
+                        rect.Height = captureHeight;
+                        debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                    }
+                };
+                System.Windows.Controls.Canvas.SetLeft(shorterButton, 430);
+                System.Windows.Controls.Canvas.SetTop(shorterButton, 90);
+                canvas.Children.Add(shorterButton);
+
+                // Precise left/right movement
+                var minorLeftButton = new System.Windows.Controls.Button
+                {
+                    Content = "◀ 10px",
+                    Width = 60,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                minorLeftButton.Click += (s, e) => {
+                    captureX -= 10;
+                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
+                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(minorLeftButton, 10);
+                System.Windows.Controls.Canvas.SetTop(minorLeftButton, 130);
+                canvas.Children.Add(minorLeftButton);
+
+                var minorRightButton = new System.Windows.Controls.Button
+                {
+                    Content = "▶ 10px",
+                    Width = 60,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
+                    BorderThickness = new Thickness(1)
+                };
+                minorRightButton.Click += (s, e) => {
+                    captureX += 10;
+                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
+                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
+                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
+                };
+                System.Windows.Controls.Canvas.SetLeft(minorRightButton, 80);
+                System.Windows.Controls.Canvas.SetTop(minorRightButton, 130);
+                canvas.Children.Add(minorRightButton);
+
+                // Save coordinates button
+                var saveButton = new System.Windows.Controls.Button
+                {
+                    Content = "Save Coordinates",
+                    Width = 150,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green),
+                    BorderThickness = new Thickness(1)
+                };
+                saveButton.Click += (s, e) => {
+                    MessageBox.Show($"Use these coordinates in your code:\n\nint captureX = {captureX};\nint captureY = {captureY};\nint captureWidth = {captureWidth};\nint captureHeight = {captureHeight};",
+                        "OCR Coordinates", MessageBoxButton.OK, MessageBoxImage.Information);
+                };
+                System.Windows.Controls.Canvas.SetLeft(saveButton, 150);
+                System.Windows.Controls.Canvas.SetTop(saveButton, 130);
+                canvas.Children.Add(saveButton);
+
+                // Close button
                 var closeButton = new System.Windows.Controls.Button
                 {
                     Content = "Close Overlay",
@@ -358,14 +619,14 @@ namespace WoWServerManager
                 // Show the window
                 visualWindow.Show();
 
-                // Auto-close after 60 seconds
+                // Auto-close after 5 minutes for extensive testing
                 var timer = new System.Threading.Timer((_) =>
                 {
                     WpfApplication.Current.Dispatcher.Invoke(() =>
                     {
                         visualWindow.Close();
                     });
-                }, null, 60000, System.Threading.Timeout.Infinite);
+                }, null, 300000, System.Threading.Timeout.Infinite);
             }
             catch (Exception ex)
             {
@@ -844,7 +1105,6 @@ namespace WoWServerManager
                 MessageBox.Show("Please select an expansion and account first.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
             try
             {
                 // Check if the launcher exists
@@ -853,7 +1113,6 @@ namespace WoWServerManager
                     MessageBox.Show($"The launcher at '{SelectedExpansion.LauncherPath}' does not exist.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
-
                 // Launch the game
                 var process = Process.Start(SelectedExpansion.LauncherPath);
                 if (process == null)
@@ -861,28 +1120,39 @@ namespace WoWServerManager
                     MessageBox.Show("Failed to start the game launcher.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
-
                 // Wait for the game client to fully load
                 await Task.Delay(SelectedExpansion.LaunchDelayMs);
-
                 // Simulate keystrokes for login
                 SendKeys.SendWait(SelectedAccount.Username);
                 SendKeys.SendWait("{TAB}");
                 SendKeys.SendWait(SelectedAccount.Password);
                 SendKeys.SendWait("{ENTER}");
-
                 // Wait for character selection screen
                 await Task.Delay(SelectedExpansion.CharacterSelectDelayMs);
 
-                // If a character is selected, try to select it in the game
+                string result = $"Game launched successfully with account: {SelectedAccount.Username}";
+
+                // Only attempt character selection if a character is explicitly selected
                 if (SelectedAccount.SelectedCharacter != null)
                 {
-                    await SelectCharacterByName(SelectedAccount.SelectedCharacter.Name);
+                    bool selectionSuccessful = await SelectCharacterByName(SelectedAccount.SelectedCharacter.Name);
+
+                    if (selectionSuccessful)
+                    {
+                        result += $"\nCharacter '{SelectedAccount.SelectedCharacter.Name}' was selected.";
+                    }
+                    else
+                    {
+                        result += $"\nAttempted to select character '{SelectedAccount.SelectedCharacter.Name}' but could not confirm selection.";
+                    }
+                }
+                else
+                {
+                    // No character selection was attempted
+                    result += "\nNo character was selected in the application.";
                 }
 
-                MessageBox.Show($"Game launched successfully with account: {SelectedAccount.Username}" +
-                                (SelectedAccount.SelectedCharacter != null ? $" and attempted to select character: {SelectedAccount.SelectedCharacter.Name}" : ""),
-                                "Launch Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(result, "Launch Successful", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -890,7 +1160,7 @@ namespace WoWServerManager
             }
         }
 
-        private async Task SelectCharacterByName(string characterName)
+        private async Task<bool> SelectCharacterByName(string characterName)
         {
             const int maxAttempts = 15;
             const double highConfidenceThreshold = 0.85;
@@ -901,7 +1171,7 @@ namespace WoWServerManager
             if (SelectedAccount?.SelectedCharacter == null)
             {
                 SendKeys.SendWait("{ENTER}");
-                return;
+                return false;
             }
 
             Character target = SelectedAccount.SelectedCharacter;
@@ -931,7 +1201,7 @@ namespace WoWServerManager
                 Console.WriteLine($"Initial character is a match - selecting");
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
-                return;
+                return true; // High confidence match
             }
 
             // Otherwise, search through the list
@@ -979,7 +1249,7 @@ namespace WoWServerManager
                     Console.WriteLine($"Exact match found at position {attempt} - selecting");
                     SendKeys.SendWait("{ENTER}");
                     await Task.Delay(1000);
-                    return;
+                    return true; // High confidence match
                 }
 
                 // Move to next character
@@ -1009,14 +1279,14 @@ namespace WoWServerManager
 
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
-                return;
+                return true; // Medium confidence match
             }
 
             // Final fallback - try with just the names
             var nameOnlyMatch = matches.OrderByDescending(m =>
                 CalculateNameOnlyMatchScore(m.text, target.Name)).FirstOrDefault();
 
-            if (nameOnlyMatch.position >= 0)
+            if (nameOnlyMatch.position >= 0 && nameOnlyMatch.score > 0.5) // Only use if we have a reasonable match
             {
                 Console.WriteLine($"Name-only match found at position {nameOnlyMatch.position}");
 
@@ -1033,12 +1303,13 @@ namespace WoWServerManager
 
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
-                return;
+                return true; // Name-only match
             }
 
-            // Ultimate fallback
+            // Ultimate fallback - just press enter on whatever is selected
             Console.WriteLine("No good match found - selecting current character");
             SendKeys.SendWait("{ENTER}");
+            return false; // Could not find a good match
         }
 
         private double CalculateNameOnlyMatchScore(string text, string targetName)
@@ -1116,352 +1387,154 @@ namespace WoWServerManager
             };
         }
 
-        public void VisualizeSelectionArea()
+        private string CaptureScreenText()
         {
+            string debugDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
+            string debugImagePath = "";
+            string debugTextPath = "";
+
             try
             {
+                // Create debug directory if it doesn't exist
+                if (!Directory.Exists(debugDirectory))
+                {
+                    Directory.CreateDirectory(debugDirectory);
+                }
+
                 // Get screen bounds
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
-                // Start with coordinates focused on character list
-                int captureX = 1250;
+                // Use exact coordinates from your screenshots
+                int captureX = 2010;
                 int captureY = 62;
-                int captureWidth = 400;
-                int captureHeight = 1231;
-
-                // Add debugging output
-                Console.WriteLine($"Setting capture area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}");
-                // Also add MessageBox to confirm values are being set
-                MessageBox.Show($"Setting capture coordinates to: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}");
+                int captureWidth = 380;
+                int captureHeight = 1031;
 
                 // Ensure the capture area stays within screen bounds
                 if (captureX + captureWidth > screenBounds.Width)
                 {
-                    captureWidth = screenBounds.Width - captureX - 5;
+                    // Adjust width if it goes beyond the screen edge
+                    captureWidth = screenBounds.Width - captureX - 5; // 5px margin
                 }
 
                 if (captureY + captureHeight > screenBounds.Height)
                 {
-                    captureHeight = screenBounds.Height - captureY - 5;
+                    // Adjust height if it goes beyond the screen edge
+                    captureHeight = screenBounds.Height - captureY - 5; // 5px margin
                 }
 
-                // Create a visualization window with precise positioning
-                var visualWindow = new Window
+                // Validate that we still have a reasonable capture area
+                if (captureWidth < 50 || captureHeight < 50)
                 {
-                    Title = "OCR Debug Overlay",
-                    Width = screenBounds.Width,
-                    Height = screenBounds.Height,
-                    WindowStyle = WindowStyle.None,
-                    AllowsTransparency = true,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(1, 0, 0, 0)),
-                    Topmost = true,
-                    Left = 0,
-                    Top = 0
-                };
+                    // Fallback to percentage-based calculation if exact coordinates don't work
+                    captureWidth = (int)(screenBounds.Width * 0.20);
+                    captureHeight = (int)(screenBounds.Height * 0.70);
+                    captureX = screenBounds.Width - captureWidth - 20;
+                    captureY = (int)(screenBounds.Height * 0.15);
+                }
 
-                // Create a canvas to draw on
-                var canvas = new System.Windows.Controls.Canvas();
-                visualWindow.Content = canvas;
+                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
 
-                // Draw the OCR area rectangle
-                var rect = new System.Windows.Shapes.Rectangle
+                // Generate timestamp for debug files
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmssfff");
+                debugImagePath = Path.Combine(debugDirectory, $"ocr_capture_{timestamp}.png");
+                debugTextPath = Path.Combine(debugDirectory, $"ocr_result_{timestamp}.txt");
+
+                // Capture screen region
+                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
                 {
-                    Width = captureWidth,
-                    Height = captureHeight,
-                    Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red),
-                    StrokeThickness = 3,
-                    Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 255, 0, 0))
-                };
-                System.Windows.Controls.Canvas.SetLeft(rect, captureX);
-                System.Windows.Controls.Canvas.SetTop(rect, captureY);
-                canvas.Children.Add(rect);
-
-                // Add text label
-                var textBlock = new System.Windows.Controls.TextBlock
-                {
-                    Text = "OCR Capture Area",
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    FontSize = 16,
-                    FontWeight = FontWeights.Bold
-                };
-                System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
-                System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
-                canvas.Children.Add(textBlock);
-
-                // Add detailed debug info
-                var debugInfoBlock = new System.Windows.Controls.TextBlock
-                {
-                    Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}",
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Lime),
-                    FontSize = 14,
-                    FontWeight = FontWeights.Normal
-                };
-                System.Windows.Controls.Canvas.SetLeft(debugInfoBlock, 10);
-                System.Windows.Controls.Canvas.SetTop(debugInfoBlock, 50);
-                canvas.Children.Add(debugInfoBlock);
-
-                // Add navigation buttons to help adjust the position
-                // Left button
-                var leftButton = new System.Windows.Controls.Button
-                {
-                    Content = "◀",
-                    Width = 40,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                leftButton.Click += (s, e) => {
-                    captureX -= 50;
-                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
-                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(leftButton, 10);
-                System.Windows.Controls.Canvas.SetTop(leftButton, 90);
-                canvas.Children.Add(leftButton);
-
-                // Right button
-                var rightButton = new System.Windows.Controls.Button
-                {
-                    Content = "▶",
-                    Width = 40,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                rightButton.Click += (s, e) => {
-                    captureX += 50;
-                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
-                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(rightButton, 60);
-                System.Windows.Controls.Canvas.SetTop(rightButton, 90);
-                canvas.Children.Add(rightButton);
-
-                // Up button
-                var upButton = new System.Windows.Controls.Button
-                {
-                    Content = "▲",
-                    Width = 40,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                upButton.Click += (s, e) => {
-                    captureY -= 50;
-                    System.Windows.Controls.Canvas.SetTop(rect, captureY);
-                    System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(upButton, 110);
-                System.Windows.Controls.Canvas.SetTop(upButton, 90);
-                canvas.Children.Add(upButton);
-
-                // Down button
-                var downButton = new System.Windows.Controls.Button
-                {
-                    Content = "▼",
-                    Width = 40,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                downButton.Click += (s, e) => {
-                    captureY += 50;
-                    System.Windows.Controls.Canvas.SetTop(rect, captureY);
-                    System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(downButton, 160);
-                System.Windows.Controls.Canvas.SetTop(downButton, 90);
-                canvas.Children.Add(downButton);
-
-                // Wider button (increase width)
-                var widerButton = new System.Windows.Controls.Button
-                {
-                    Content = "Wider",
-                    Width = 60,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                widerButton.Click += (s, e) => {
-                    captureWidth += 20;
-                    rect.Width = captureWidth;
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(widerButton, 210);
-                System.Windows.Controls.Canvas.SetTop(widerButton, 90);
-                canvas.Children.Add(widerButton);
-
-                // Narrower button (decrease width)
-                var narrowerButton = new System.Windows.Controls.Button
-                {
-                    Content = "Narrower",
-                    Width = 70,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                narrowerButton.Click += (s, e) => {
-                    if (captureWidth > 50)
-                    { // Don't go too narrow
-                        captureWidth -= 20;
-                        rect.Width = captureWidth;
-                        debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                    }
-                };
-                System.Windows.Controls.Canvas.SetLeft(narrowerButton, 280);
-                System.Windows.Controls.Canvas.SetTop(narrowerButton, 90);
-                canvas.Children.Add(narrowerButton);
-
-                // Taller button (increase height)
-                var tallerButton = new System.Windows.Controls.Button
-                {
-                    Content = "Taller",
-                    Width = 60,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                tallerButton.Click += (s, e) => {
-                    captureHeight += 20;
-                    rect.Height = captureHeight;
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(tallerButton, 360);
-                System.Windows.Controls.Canvas.SetTop(tallerButton, 90);
-                canvas.Children.Add(tallerButton);
-
-                // Shorter button (decrease height)
-                var shorterButton = new System.Windows.Controls.Button
-                {
-                    Content = "Shorter",
-                    Width = 60,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                shorterButton.Click += (s, e) => {
-                    if (captureHeight > 50)
-                    { // Don't go too short
-                        captureHeight -= 20;
-                        rect.Height = captureHeight;
-                        debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                    }
-                };
-                System.Windows.Controls.Canvas.SetLeft(shorterButton, 430);
-                System.Windows.Controls.Canvas.SetTop(shorterButton, 90);
-                canvas.Children.Add(shorterButton);
-
-                // Precise left/right movement
-                var minorLeftButton = new System.Windows.Controls.Button
-                {
-                    Content = "◀ 10px",
-                    Width = 60,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                minorLeftButton.Click += (s, e) => {
-                    captureX -= 10;
-                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
-                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(minorLeftButton, 10);
-                System.Windows.Controls.Canvas.SetTop(minorLeftButton, 130);
-                canvas.Children.Add(minorLeftButton);
-
-                var minorRightButton = new System.Windows.Controls.Button
-                {
-                    Content = "▶ 10px",
-                    Width = 60,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Yellow),
-                    BorderThickness = new Thickness(1)
-                };
-                minorRightButton.Click += (s, e) => {
-                    captureX += 10;
-                    System.Windows.Controls.Canvas.SetLeft(rect, captureX);
-                    System.Windows.Controls.Canvas.SetLeft(textBlock, captureX);
-                    debugInfoBlock.Text = $"Screen: {screenBounds.Width}x{screenBounds.Height}\nCapture Area: X={captureX}, Y={captureY}, W={captureWidth}, H={captureHeight}";
-                };
-                System.Windows.Controls.Canvas.SetLeft(minorRightButton, 80);
-                System.Windows.Controls.Canvas.SetTop(minorRightButton, 130);
-                canvas.Children.Add(minorRightButton);
-
-                // Save coordinates button
-                var saveButton = new System.Windows.Controls.Button
-                {
-                    Content = "Save Coordinates",
-                    Width = 150,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green),
-                    BorderThickness = new Thickness(1)
-                };
-                saveButton.Click += (s, e) => {
-                    MessageBox.Show($"Use these coordinates in your code:\n\nint captureX = {captureX};\nint captureY = {captureY};\nint captureWidth = {captureWidth};\nint captureHeight = {captureHeight};",
-                        "OCR Coordinates", MessageBoxButton.OK, MessageBoxImage.Information);
-                };
-                System.Windows.Controls.Canvas.SetLeft(saveButton, 150);
-                System.Windows.Controls.Canvas.SetTop(saveButton, 130);
-                canvas.Children.Add(saveButton);
-
-                // Close button
-                var closeButton = new System.Windows.Controls.Button
-                {
-                    Content = "Close Overlay",
-                    Width = 120,
-                    Height = 30,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red),
-                    BorderThickness = new Thickness(1)
-                };
-                closeButton.Click += (s, e) => visualWindow.Close();
-                System.Windows.Controls.Canvas.SetLeft(closeButton, 10);
-                System.Windows.Controls.Canvas.SetTop(closeButton, 10);
-                canvas.Children.Add(closeButton);
-
-                // Show the window
-                visualWindow.Show();
-
-                // Auto-close after 5 minutes for extensive testing
-                var timer = new System.Threading.Timer((_) =>
-                {
-                    WpfApplication.Current.Dispatcher.Invoke(() =>
+                    using (Graphics g = Graphics.FromImage(bitmap))
                     {
-                        visualWindow.Close();
-                    });
-                }, null, 300000, System.Threading.Timeout.Infinite);
+                        g.CopyFromScreen(
+                            new Point(captureBounds.Left, captureBounds.Top),
+                            Point.Empty,
+                            captureBounds.Size);
+                    }
+
+                    // Save the screenshot for debugging
+                    bitmap.Save(debugImagePath, ImageFormat.Png);
+
+                    // Load the captured image with EmguCV
+                    using (Image<Bgr, byte> emguImage = new Image<Bgr, byte>(debugImagePath))
+                    {
+                        // Try to detect the highlighted row (gold/yellow selection)
+                        Rectangle? highlightedArea = DetectHighlightedRow(emguImage);
+
+                        Image<Bgr, byte> regionOfInterest;
+
+                        if (highlightedArea.HasValue)
+                        {
+                            // If we found a highlighted area, crop to that area
+                            Rectangle roi = highlightedArea.Value;
+
+                            // Save the highlighted region for debugging
+                            string highlightedPath = Path.Combine(debugDirectory, $"highlighted_{timestamp}.png");
+                            using (Image<Bgr, byte> highlightedImage = emguImage.Copy(roi))
+                            {
+                                highlightedImage.Save(highlightedPath);
+
+                                // Use the highlighted region for OCR processing
+                                regionOfInterest = highlightedImage.Clone();
+                            }
+                        }
+                        else
+                        {
+                            // If no highlight detected, use the entire image
+                            regionOfInterest = emguImage.Clone();
+                        }
+
+                        // Process image with EmguCV for better OCR results
+                        var processedImage = PreprocessImageWithEmguCV(regionOfInterest);
+
+                        string processedImagePath = Path.Combine(debugDirectory, $"ocr_processed_{timestamp}.png");
+                        processedImage.Save(processedImagePath);
+
+                        // Perform OCR with Tesseract
+                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                        string result = "";
+
+                        try
+                        {
+                            using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                            {
+                                // Configure Tesseract for game text
+                                engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- '");
+                                engine.SetVariable("tessedit_pageseg_mode", "6"); // Assume a single uniform block of text
+                                engine.SetVariable("tessedit_ocr_engine_mode", "2"); // LSTM only
+
+                                // Convert EmguCV image to a format Tesseract can use
+                                using (var img = ConvertEmguCvImageToPix(processedImage))
+                                {
+                                    using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                                    {
+                                        result = page.GetText().Trim();
+                                        File.WriteAllText(debugTextPath, result); // Save OCR result
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ocrEx)
+                        {
+                            File.WriteAllText(debugTextPath, $"OCR Error: {ocrEx.Message}");
+                            Console.WriteLine($"OCR Error: {ocrEx.Message}");
+                            return string.Empty;
+                        }
+
+                        return result;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error visualizing selection area: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Write error to debug file
+                try
+                {
+                    File.WriteAllText(debugTextPath, $"Capture Error: {ex.Message}\n{ex.StackTrace}");
+                }
+                catch { /* Ignore secondary errors */ }
+
+                Console.WriteLine($"Error capturing screen: {ex.Message}");
+                return string.Empty;
             }
         }
 
@@ -2167,7 +2240,28 @@ namespace WoWServerManager
                 get => _selectedCharacter;
                 set
                 {
-                    _selectedCharacter = value;
+                    // Allow deselection by clicking the selected item again
+                    if (_selectedCharacter == value)
+                    {
+                        _selectedCharacter = null;
+
+                        // Also update the selected character in the account
+                        if (SelectedAccount != null)
+                        {
+                            SelectedAccount.SelectedCharacter = null;
+                        }
+                    }
+                    else
+                    {
+                        _selectedCharacter = value;
+
+                        // Also update the selected character in the account
+                        if (SelectedAccount != null)
+                        {
+                            SelectedAccount.SelectedCharacter = value;
+                        }
+                    }
+
                     OnPropertyChanged();
                 }
             }
