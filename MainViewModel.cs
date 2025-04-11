@@ -29,6 +29,8 @@ using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using DrawingSize = System.Drawing.Size;
 using WpfApplication = System.Windows.Application;
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
 
 namespace WoWServerManager
 {
@@ -536,8 +538,15 @@ namespace WoWServerManager
                 Width = 800,
                 Height = 600,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.CanResize,
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 220, 220, 220)) // Light gray background instead of using the image
+                ResizeMode = ResizeMode.CanResize
+            };
+
+            // Set the background similar to the main window
+            howToUseWindow.Background = new ImageBrush
+            {
+                ImageSource = new BitmapImage(new Uri("pack://application:,,,/Resources/wow-background.jpg")),
+                Opacity = 0.2,
+                Stretch = Stretch.UniformToFill
             };
 
             // Create a scroll viewer for the content
@@ -583,7 +592,7 @@ namespace WoWServerManager
             warningBorder.Child = warningPanel;
 
             // Add the warning icon and text in a horizontal stack
-            var warningHeaderPanel = new System.Windows.Controls.StackPanel { Orientation = Orientation.Horizontal };
+            var warningHeaderPanel = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
 
             // Add the triangle warning icon
             warningHeaderPanel.Children.Add(new System.Windows.Controls.TextBlock
@@ -1035,6 +1044,28 @@ namespace WoWServerManager
             }
 
             return false;
+        }
+
+        private string GetExpansionIconPath(string expansionName)
+        {
+            // Normalize the expansion name to handle variations
+            expansionName = expansionName.ToLower();
+
+            // Map expansion names to icon paths
+            return expansionName switch
+            {
+                string s when s.Contains("classic") => "/Resources/Icons/classic_icon.png",
+                string s when s.Contains("burning crusade") => "/Resources/Icons/tbc_icon.png",
+                string s when s.Contains("lich king") => "/Resources/Icons/wotlk_icon.png",
+                string s when s.Contains("cataclysm") => "/Resources/Icons/cata_icon.png",
+                string s when s.Contains("pandaria") => "/Resources/Icons/mop_icon.png",
+                string s when s.Contains("draenor") => "/Resources/Icons/wod_icon.png",
+                string s when s.Contains("legion") => "/Resources/Icons/legion_icon.png",
+                string s when s.Contains("azeroth") => "/Resources/Icons/bfa_icon.png",
+                string s when s.Contains("shadowlands") => "/Resources/Icons/shadowlands_icon.png",
+                string s when s.Contains("dragonflight") => "/Resources/Icons/dragonflight_icon.png",
+                _ => "/Resources/Icons/default_icon.png"
+            };
         }
 
         private string CaptureScreenText()
@@ -1723,10 +1754,22 @@ namespace WoWServerManager
         {
             private string _name;
             private string _launcherPath;
-            private int _launchDelayMs = 5000; // Default to 5 seconds
-            private int _characterSelectDelayMs = 8000; // Default to 8 seconds
+            private string _iconPath; // New property
+            private int _launchDelayMs = 5000;
+            private int _characterSelectDelayMs = 8000;
             private ObservableCollection<Account> _accounts;
-            private Server _server; // Reference to parent server
+            private Server _server;
+
+            // Add a new property with a getter and setter
+            public string IconPath
+            {
+                get => _iconPath;
+                set
+                {
+                    _iconPath = value;
+                    OnPropertyChanged();
+                }
+            }
 
             public string Name
             {
@@ -2050,8 +2093,22 @@ namespace WoWServerManager
                 // Set dialog properties and layout
                 Title = existingExpansion == null ? "Add Expansion" : "Edit Expansion";
                 Width = 500;
-                Height = 300; // Increased height for additional field
+                Height = 350; // Slightly increased height to accommodate dropdown
                 WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+                // Define WoW expansions
+                string[] wowExpansions = {
+            "Classic",
+            "The Burning Crusade (TBC)",
+            "Wrath of the Lich King (WotLK)",
+            "Cataclysm",
+            "Mists of Pandaria (MoP)",
+            "Warlords of Draenor (WoD)",
+            "Legion",
+            "Battle for Azeroth (BfA)",
+            "Shadowlands",
+            "Dragonflight"
+        };
 
                 // Create a new expansion for dialog purposes
                 // If editing, copy only the properties we want to modify
@@ -2075,16 +2132,46 @@ namespace WoWServerManager
                 grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
                 grid.Margin = new Thickness(10);
 
-                // Name label and textbox
+                // Name label and ComboBox (replacing the previous TextBox)
                 var nameLabel = new System.Windows.Controls.Label { Content = "Expansion Name:", VerticalAlignment = VerticalAlignment.Center };
                 System.Windows.Controls.Grid.SetRow(nameLabel, 0);
                 System.Windows.Controls.Grid.SetColumn(nameLabel, 0);
 
-                var nameTextBox = new System.Windows.Controls.TextBox { Margin = new Thickness(5), Text = Expansion.Name };
-                nameTextBox.SetBinding(System.Windows.Controls.TextBox.TextProperty, new System.Windows.Data.Binding("Name") { Source = Expansion, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
-                System.Windows.Controls.Grid.SetRow(nameTextBox, 0);
-                System.Windows.Controls.Grid.SetColumn(nameTextBox, 1);
-                System.Windows.Controls.Grid.SetColumnSpan(nameTextBox, 2);
+                var nameComboBox = new System.Windows.Controls.ComboBox
+                {
+                    Margin = new Thickness(5),
+                    Style = System.Windows.Application.Current.Resources["WoWComboBoxStyle"] as Style,
+                    IsEditable = false
+                };
+
+                // Populate the ComboBox with WoW expansions
+                foreach (var expansion in wowExpansions)
+                {
+                    nameComboBox.Items.Add(expansion);
+                }
+
+                // Set the current value if editing an existing expansion
+                if (!string.IsNullOrEmpty(Expansion.Name))
+                {
+                    nameComboBox.SelectedItem = wowExpansions.FirstOrDefault(e =>
+                        e.IndexOf(Expansion.Name, StringComparison.OrdinalIgnoreCase) >= 0) ?? Expansion.Name;
+                }
+
+                // Update Expansion name when selection changes
+                nameComboBox.SelectionChanged += (sender, args) =>
+                {
+                    Expansion.Name = nameComboBox.SelectedItem as string;
+
+                    // Set the icon path based on the selected expansion
+                    if (nameComboBox.SelectedItem is string selectedExpansion)
+                    {
+                        Expansion.IconPath = GetExpansionIconPath(selectedExpansion);
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetRow(nameComboBox, 0);
+                System.Windows.Controls.Grid.SetColumn(nameComboBox, 1);
+                System.Windows.Controls.Grid.SetColumnSpan(nameComboBox, 2);
 
                 // Launcher path label and textbox with browse button
                 var pathLabel = new System.Windows.Controls.Label { Content = "Launcher Path:", VerticalAlignment = VerticalAlignment.Center };
@@ -2099,11 +2186,11 @@ namespace WoWServerManager
                 var browseButton = new System.Windows.Controls.Button { Content = "Browse", Width = 75, Margin = new Thickness(5) };
                 browseButton.Click += (sender, args) =>
                 {
-                var dialog = new Microsoft.Win32.OpenFileDialog
-                {
-                    Filter = "Executable Files|*.exe|All Files|*.*",
-                    Title = "Select WoW Launcher"
-                };
+                    var dialog = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Filter = "Executable Files|*.exe|All Files|*.*",
+                        Title = "Select WoW Launcher"
+                    };
 
                     if (dialog.ShowDialog() == true)
                     {
@@ -2182,7 +2269,7 @@ namespace WoWServerManager
                 buttonPanel.Children.Add(cancelButton);
 
                 grid.Children.Add(nameLabel);
-                grid.Children.Add(nameTextBox);
+                grid.Children.Add(nameComboBox);
                 grid.Children.Add(pathLabel);
                 grid.Children.Add(pathTextBox);
                 grid.Children.Add(browseButton);
@@ -2195,6 +2282,8 @@ namespace WoWServerManager
                 Content = grid;
             }
         }
+
+
 
         public class AccountDialog : Window
         {
