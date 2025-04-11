@@ -258,10 +258,10 @@ namespace WoWServerManager
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
                 // Calculate the area where character list appears
-                int captureWidth = (int)(screenBounds.Width * 0.3);  // 30% of screen width
-                int captureHeight = (int)(screenBounds.Height * 0.7); // 70% of screen height
-                int captureX = screenBounds.Width - captureWidth;    // Right side
-                int captureY = (int)(screenBounds.Height * 0.15);    // Slightly below top
+                int captureWidth = (int)(screenBounds.Width * 0.25);  // 25% of screen width
+                int captureHeight = (int)(screenBounds.Height * 0.75); // 75% of screen height
+                int captureX = screenBounds.Width - captureWidth - 20;  // Right side with small margin
+                int captureY = (int)(screenBounds.Height * 0.18);    // Slightly below top, adjusted
 
                 // Create a visualization window
                 var visualWindow = new Window
@@ -304,18 +304,33 @@ namespace WoWServerManager
                 System.Windows.Controls.Canvas.SetTop(textBlock, captureY - 20);
                 canvas.Children.Add(textBlock);
 
+                // Add a close button - Use System.Windows.Controls.Button instead of Button
+                var closeButton = new System.Windows.Controls.Button
+                {
+                    Content = "Close Overlay",
+                    Width = 120,
+                    Height = 30,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red),
+                    BorderThickness = new Thickness(1)
+                };
+                closeButton.Click += (s, e) => visualWindow.Close();
+                System.Windows.Controls.Canvas.SetLeft(closeButton, 10);
+                System.Windows.Controls.Canvas.SetTop(closeButton, 10);
+                canvas.Children.Add(closeButton);
+
                 // Show the window
                 visualWindow.Show();
 
-                // Auto-close after 5 seconds
+                // Auto-close after 10 seconds (extended from 5)
                 var timer = new System.Threading.Timer((_) =>
                 {
-                    // Use WpfApplication (our alias) to avoid ambiguity
                     WpfApplication.Current.Dispatcher.Invoke(() =>
                     {
                         visualWindow.Close();
                     });
-                }, null, 5000, System.Threading.Timeout.Infinite);
+                }, null, 10000, System.Threading.Timeout.Infinite);
             }
             catch (Exception ex)
             {
@@ -1084,10 +1099,10 @@ namespace WoWServerManager
                 Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
 
                 // Calculate capture area for the character list (right side of screen)
-                int captureWidth = (int)(screenBounds.Width * 0.3);  // 30% of screen width
-                int captureHeight = (int)(screenBounds.Height * 0.7); // 70% of screen height
-                int captureX = screenBounds.Width - captureWidth;    // Right side
-                int captureY = (int)(screenBounds.Height * 0.15);    // Slightly below top
+                int captureWidth = (int)(screenBounds.Width * 0.25);  // 25% of screen width
+                int captureHeight = (int)(screenBounds.Height * 0.75); // 75% of screen height
+                int captureX = screenBounds.Width - captureWidth - 20;  // Right side with small margin
+                int captureY = (int)(screenBounds.Height * 0.18);    // Slightly below top, adjusted
 
                 Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
 
