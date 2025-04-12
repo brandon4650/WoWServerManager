@@ -251,43 +251,54 @@
         <!-- Footer with Launch Button -->
         <Border Grid.Row="2" Background="#222222" BorderBrush="{StaticResource WoWGold}" BorderThickness="0,1,0,0">
             <Grid Margin="20,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Vertical">
+                <!-- Selected Items Info -->
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical">
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-        <Run Text="Selected Server: "/>
-        <Run Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="Selected Server: "/>
+                        <Run Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-        <Run Text="Selected Expansion: "/>
-        <Run Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="Selected Expansion: "/>
+                        <Run Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-        <Run Text="Selected Account: "/>
-        <Run Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="Selected Account: "/>
+                        <Run Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                     <TextBlock Foreground="White" FontWeight="SemiBold">
-        <Run Text="Selected Character: "/>
-        <Run Text="{Binding SelectedCharacter.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-        <Run Text="{Binding SelectedCharacter.Level, StringFormat=' (Level {0})', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
-        <Run Text="{Binding SelectedCharacter.Class, StringFormat=' {0}', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="Selected Character: "/>
+                        <Run Text="{Binding SelectedCharacter.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="{Binding SelectedCharacter.Level, StringFormat=' (Level {0})', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
+                        <Run Text="{Binding SelectedCharacter.Class, StringFormat=' {0}', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
                     </TextBlock>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <!-- Main Action Buttons -->
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="SaveConfigButton" Content="Save Configuration" Style="{StaticResource WoWButtonStyle}" 
                     Command="{Binding SaveConfigCommand}" Margin="5,0"/>
-                    <!-- Add Debug OCR Overlay Button Here -->
-                    <Button x:Name="DebugOcrOverlayButton" Content="Debug OCR Overlay" 
-                    Style="{StaticResource WoWButtonStyle}" 
-                    Command="{Binding DebugOcrOverlayCommand}"
-                    Margin="5,0"/>
                     <Button x:Name="LaunchGameButton" Content="LAUNCH GAME" FontSize="16" 
                     Style="{StaticResource WoWButtonStyle}" Command="{Binding LaunchGameCommand}"
                     Padding="20,10" Margin="5,0"/>
+                </StackPanel>
+
+                <!-- OCR Tools Row -->
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                    <TextBlock Text="Character Selection Tools:" VerticalAlignment="Center" Foreground="White" Margin="0,0,10,0"/>
+                    <Button Content="Calibrate OCR" Style="{StaticResource WoWButtonStyle}" Command="{Binding CalibrateOcrCommand}" Margin="5,0" ToolTip="Run this to optimize OCR parameters for your screen"/>
+                    <Button Content="Test Selection" Style="{StaticResource WoWButtonStyle}" Command="{Binding TestCharacterSelectionCommand}" Margin="5,0" ToolTip="Test if your character can be detected without launching the game"/>
+                    <Button Content="OCR Analysis" Style="{StaticResource WoWButtonStyle}" Command="{Binding GetCharacterRecommendationsCommand}" Margin="5,0" ToolTip="Get recommendations for improving character selection"/>
+                    <Button Content="Debug OCR" Style="{StaticResource WoWButtonStyle}" Command="{Binding VisualizeOcrResultsCommand}" Margin="5,0" ToolTip="See what the OCR engine is detecting"/>
+                    <Button Content="Overlay Debug" Style="{StaticResource WoWButtonStyle}" Command="{Binding DebugOcrOverlayCommand}" Margin="5,0" ToolTip="Show capture area overlay for debugging"/>
                 </StackPanel>
             </Grid>
         </Border>
