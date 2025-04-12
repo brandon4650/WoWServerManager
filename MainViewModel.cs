@@ -32,12 +32,6 @@ using WpfApplication = System.Windows.Application;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
 using System.Text.RegularExpressions;
-using System.Windows.Controls;
-using System.Net.Http;
-using System.Text;
-
-// Add this to resolve Mat reference errors
-using Mat = Emgu.CV.Mat;
 
 namespace WoWServerManager
 {
@@ -180,12 +174,6 @@ namespace WoWServerManager
         public ICommand ShowHowToUseCommand { get; }
 
         public ICommand DebugOcrOverlayCommand { get; }
-        public ICommand CalibrateOcrCommand { get; }
-        public ICommand VisualizeOcrResultsCommand { get; }
-
-        public ICommand GetCharacterRecommendationsCommand { get; }
-        public ICommand TestCharacterSelectionCommand { get; }
-
 
 
         public MainViewModel()
@@ -218,13 +206,6 @@ namespace WoWServerManager
             ShowHowToUseCommand = new RelayCommand(_ => ShowHowToUse());
 
             DebugOcrOverlayCommand = new RelayCommand(_ => VisualizeSelectionArea());
-            CalibrateOcrCommand = new RelayCommand(_ => CalibrateCharacterSelectionOcr());
-            VisualizeOcrResultsCommand = new RelayCommand(_ => VisualizeOcrResults());
-
-            CalibrateOcrCommand = new RelayCommand(async _ => await CalibrateCharacterSelectionOcr());
-            TestCharacterSelectionCommand = new RelayCommand(async _ => await TestCharacterSelection());
-            GetCharacterRecommendationsCommand = new RelayCommand(_ => ShowCharacterRecommendations());
-            
         }
 
         private void LoadConfig()
@@ -304,462 +285,6 @@ namespace WoWServerManager
                 MessageBox.Show($"Error saving configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        private void EnsureDefaultIcons()
-        {
-            try
-            {
-                string iconsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Icons");
-                if (!Directory.Exists(iconsDir))
-                {
-                    Directory.CreateDirectory(iconsDir);
-                }
-
-                // List of required icon files
-                string[] iconFiles = {
-            "default_icon.png",
-            "classic_icon.png",
-            "tbc_icon.png",
-            "wotlk_icon.png",
-            "cata_icon.png",
-            "mop_icon.png",
-            "wod_icon.png",
-            "legion_icon.png",
-            "bfa_icon.png",
-            "shadowlands_icon.png",
-            "dragonflight_icon.png"
-        };
-
-                bool createdAnyIcon = false;
-
-                // Create placeholder icons if they don't exist
-                foreach (string iconFile in iconFiles)
-                {
-                    string iconPath = Path.Combine(iconsDir, iconFile);
-                    if (!File.Exists(iconPath))
-                    {
-                        // Create a simple colored square as placeholder
-                        using (Bitmap bitmap = new Bitmap(64, 64))
-                        {
-                            using (Graphics g = Graphics.FromImage(bitmap))
-                            {
-                                // Fill with a color based on icon name
-                                Color color = GetColorForIcon(iconFile);
-                                g.FillRectangle(new SolidBrush(color), 0, 0, 64, 64);
-                                g.DrawRectangle(new Pen(Color.Gold, 2), 1, 1, 61, 61);
-
-                                // Add text label
-                                string label = iconFile.Replace("_icon.png", "").ToUpper();
-                                using (Font font = new Font(new FontFamily("Arial"), 8, FontStyle.Bold))
-                                {
-                                    g.DrawString(label, font, System.Drawing.Brushes.White,
-                                                 new RectangleF(2, 24, 60, 20),
-                                                 new StringFormat { Alignment = StringAlignment.Center });
-                                }
-                            }
-
-                            // Create directory if needed
-                            Directory.CreateDirectory(Path.GetDirectoryName(iconPath));
-
-                            // Save the bitmap
-                            bitmap.Save(iconPath, ImageFormat.Png);
-                            createdAnyIcon = true;
-                        }
-
-                        Console.WriteLine($"Created placeholder icon: {iconPath}");
-                    }
-                }
-
-                // Show message if any icons were created
-                if (createdAnyIcon)
-                {
-                    MessageBox.Show(
-                        "Placeholder expansion icons have been created. For better appearance, " +
-                        "consider replacing them with official WoW expansion icons in the Resources/Icons folder.",
-                        "Icons Created",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error ensuring default icons: {ex.Message}");
-            }
-        }
-        private void ProcessImageWithCLAHE(Mat inputMat, Mat outputMat)
-        {
-            // Create a CLAHE instance 
-            var clahe = CvInvoke.CreateCLAHE(2.0, new System.Drawing.Size(8, 8));
-
-            // Apply the CLAHE algorithm
-            clahe.Apply(inputMat, outputMat);
-        }
-
-
-        // Helper method to generate colors for placeholder icons
-        private System.Drawing.Color GetColorForIcon(string iconName)
-        {
-            switch (iconName.ToLower())
-            {
-                case "classic_icon.png": return System.Drawing.Color.FromArgb(120, 120, 120);
-                case "tbc_icon.png": return System.Drawing.Color.FromArgb(0, 120, 0);
-                case "wotlk_icon.png": return System.Drawing.Color.FromArgb(0, 80, 160);
-                case "cata_icon.png": return System.Drawing.Color.FromArgb(200, 60, 0);
-                case "mop_icon.png": return System.Drawing.Color.FromArgb(0, 150, 150);
-                case "wod_icon.png": return System.Drawing.Color.FromArgb(180, 40, 0);
-                case "legion_icon.png": return System.Drawing.Color.FromArgb(0, 180, 0);
-                case "bfa_icon.png": return System.Drawing.Color.FromArgb(0, 0, 180);
-                case "shadowlands_icon.png": return System.Drawing.Color.FromArgb(100, 60, 160);
-                case "dragonflight_icon.png": return System.Drawing.Color.FromArgb(200, 160, 0);
-                default: return System.Drawing.Color.FromArgb(80, 80, 80);
-            }
-        }
-
-        private void ShowCharacterRecommendations()
-        {
-            string recommendations = GetCharacterSelectionRecommendations();
-
-            var dialog = new Window
-            {
-                Title = "Character Selection Recommendations",
-                Width = 600,
-                Height = 400,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30))
-            };
-
-            var mainPanel = new System.Windows.Controls.StackPanel
-            {
-                Margin = new Thickness(20)
-            };
-
-            var header = new System.Windows.Controls.TextBlock
-            {
-                Text = "Character Selection Recommendations",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Colors.Gold),
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-
-            var content = new System.Windows.Controls.TextBox
-            {
-                Text = recommendations,
-                IsReadOnly = true,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(20, 20, 20)),
-                Foreground = new SolidColorBrush(Colors.White),
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
-                Padding = new Thickness(10),
-                FontFamily = new FontFamily("Consolas"),
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
-                Height = 250
-            };
-
-            var closeButton = new System.Windows.Controls.Button
-            {
-                Content = "Close",
-                Width = 100,
-                Height = 30,
-                Margin = new Thickness(0, 15, 0, 0),
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            closeButton.Click += (sender, e) => dialog.Close();
-
-            mainPanel.Children.Add(header);
-            mainPanel.Children.Add(content);
-            mainPanel.Children.Add(closeButton);
-
-            dialog.Content = mainPanel;
-            dialog.ShowDialog();
-        }
-
-        // Add a method to test character selection without actually logging in
-        public async Task TestCharacterSelection()
-        {
-            if (SelectedAccount?.SelectedCharacter == null)
-            {
-                MessageBox.Show("Please select a character first.", "No Character Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Check if WoW is running
-            Process[] wowProcesses = Process.GetProcessesByName("Wow");
-            Process[] wowRetailProcesses = Process.GetProcessesByName("WowClassic");
-
-            if (wowProcesses.Length == 0 && wowRetailProcesses.Length == 0)
-            {
-                // Show warning that WoW isn't running
-                var result = MessageBox.Show(
-                    "World of Warcraft doesn't appear to be running. This test works best when WoW is open on the character selection screen.\n\n" +
-                    "Do you want to continue anyway?",
-                    "WoW Not Detected",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result == MessageBoxResult.No)
-                    return;
-            }
-
-            // Show test in progress dialog
-            var testWindow = new Window
-            {
-                Title = "Character Selection Test",
-                Width = 500,
-                Height = 300,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30))
-            };
-
-            var mainPanel = new System.Windows.Controls.StackPanel
-            {
-                Margin = new Thickness(20)
-            };
-
-            var header = new System.Windows.Controls.TextBlock
-            {
-                Text = "Testing Character Selection",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Colors.Gold),
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-
-            var statusText = new System.Windows.Controls.TextBlock
-            {
-                Text = "Scanning for character names...",
-                Foreground = new SolidColorBrush(Colors.White),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-
-            var progressBar = new System.Windows.Controls.ProgressBar
-            {
-                IsIndeterminate = true,
-                Height = 20,
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-
-            var resultText = new System.Windows.Controls.TextBox
-            {
-                IsReadOnly = true,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(20, 20, 20)),
-                Foreground = new SolidColorBrush(Colors.White),
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
-                Padding = new Thickness(10),
-                FontFamily = new FontFamily("Consolas"),
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
-                Height = 100
-            };
-
-            var closeButton = new System.Windows.Controls.Button
-            {
-                Content = "Close",
-                Width = 100,
-                Height = 30,
-                Margin = new Thickness(0, 15, 0, 0),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                IsEnabled = false
-            };
-            closeButton.Click += (sender, e) => testWindow.Close();
-
-            mainPanel.Children.Add(header);
-            mainPanel.Children.Add(statusText);
-            mainPanel.Children.Add(progressBar);
-            mainPanel.Children.Add(resultText);
-            mainPanel.Children.Add(closeButton);
-
-            testWindow.Content = mainPanel;
-            testWindow.Show();
-
-            // Run the test
-            try
-            {
-                // Get the target character
-                Character target = SelectedAccount.SelectedCharacter;
-
-                // Capture screen text
-                string screenText = CaptureScreenText();
-
-                // Log the OCR result
-                resultText.Text = "OCR Result:\n" + screenText;
-
-                // Update status
-                statusText.Text = "Analyzing captured text...";
-                await Task.Delay(500);
-
-                // Calculate match score
-                double matchScore = CalculateCharacterMatchScore(screenText, target);
-                bool exactNameMatch = ContainsExactCharacterName(screenText, target.Name);
-
-                // Update status based on results
-                if (exactNameMatch)
-                {
-                    statusText.Text = $"Success! Found exact match for character name '{target.Name}'";
-                    statusText.Foreground = new SolidColorBrush(Colors.LightGreen);
-                }
-                else if (matchScore >= 0.65)
-                {
-                    statusText.Text = $"Partial match found with {matchScore:P0} confidence";
-                    statusText.Foreground = new SolidColorBrush(Colors.Yellow);
-                }
-                else
-                {
-                    statusText.Text = $"No match found. Character '{target.Name}' was not detected";
-                    statusText.Foreground = new SolidColorBrush(Colors.Red);
-                }
-
-                // Append advice based on results
-                StringBuilder advice = new StringBuilder();
-                advice.AppendLine("\n\nAnalysis:");
-
-                if (exactNameMatch)
-                {
-                    advice.AppendLine("✓ Character name detected successfully");
-                }
-                else
-                {
-                    advice.AppendLine("✗ Character name not found in OCR text");
-                }
-
-                // Check for level
-                if (screenText.Contains($"Level {target.Level}") || screenText.Contains($"Lvl {target.Level}"))
-                {
-                    advice.AppendLine($"✓ Character level ({target.Level}) detected");
-                }
-                else
-                {
-                    advice.AppendLine($"✗ Character level ({target.Level}) not detected");
-                }
-
-                // Check for class
-                if (!string.IsNullOrEmpty(target.Class) && screenText.ToLower().Contains(target.Class.ToLower()))
-                {
-                    advice.AppendLine($"✓ Character class ({target.Class}) detected");
-                }
-                else if (!string.IsNullOrEmpty(target.Class))
-                {
-                    advice.AppendLine($"✗ Character class ({target.Class}) not detected");
-                }
-
-                // Overall assessment
-                advice.AppendLine("\nOverall Assessment:");
-                if (matchScore >= 0.85)
-                {
-                    advice.AppendLine("Excellent! Character selection will work reliably.");
-                }
-                else if (matchScore >= 0.65)
-                {
-                    advice.AppendLine("Good. Character selection should work in most cases.");
-                }
-                else if (matchScore >= 0.4)
-                {
-                    advice.AppendLine("Fair. Character selection may work but could be unreliable.");
-                }
-                else
-                {
-                    advice.AppendLine("Poor. Character selection is unlikely to work reliably.");
-                    advice.AppendLine("Try running OCR calibration or adjust screen positioning.");
-                }
-
-                resultText.Text += advice.ToString();
-
-                // Stop progress and enable close button
-                progressBar.IsIndeterminate = false;
-                progressBar.Value = 100;
-                closeButton.IsEnabled = true;
-            }
-            catch (Exception ex)
-            {
-                statusText.Text = "Error during test: " + ex.Message;
-                statusText.Foreground = new SolidColorBrush(Colors.Red);
-                resultText.Text = ex.ToString();
-                progressBar.IsIndeterminate = false;
-                closeButton.IsEnabled = true;
-            }
-        }
-
-        private void AdjustOcrForScreenResolution()
-        {
-            // Get the current screen resolution
-            int screenWidth = Screen.PrimaryScreen.Bounds.Width;
-            int screenHeight = Screen.PrimaryScreen.Bounds.Height;
-
-            // Default character selection area (works for 1920x1080)
-            int defaultCaptureX = 2010;
-            int defaultCaptureY = 62;
-            int defaultCaptureWidth = 380;
-            int defaultCaptureHeight = 1031;
-
-            // If resolution is different from the default assumptions
-            if (screenWidth != 1920 || screenHeight != 1080)
-            {
-                // For 4K displays (3840x2160)
-                if (screenWidth >= 3840)
-                {
-                    _charSelectCaptureX = Convert.ToInt32(screenWidth * 0.52);
-                    _charSelectCaptureY = Convert.ToInt32(screenHeight * 0.06);
-                    _charSelectCaptureWidth = Convert.ToInt32(screenWidth * 0.20);
-                    _charSelectCaptureHeight = Convert.ToInt32(screenHeight * 0.85);
-                }
-                // For ultrawide monitors (21:9 aspect ratio)
-                else if ((double)screenWidth / screenHeight >= 2.1)
-                {
-                    _charSelectCaptureX = Convert.ToInt32(screenWidth * 0.82);
-                    _charSelectCaptureY = Convert.ToInt32(screenHeight * 0.06);
-                    _charSelectCaptureWidth = Convert.ToInt32(screenWidth * 0.15);
-                    _charSelectCaptureHeight = Convert.ToInt32(screenHeight * 0.85);
-                }
-                // For other resolutions, use proportional scaling
-                else
-                {
-                    double xRatio = (double)screenWidth / 1920;
-                    double yRatio = (double)screenHeight / 1080;
-
-                    _charSelectCaptureX = Convert.ToInt32(defaultCaptureX * xRatio);
-                    _charSelectCaptureY = Convert.ToInt32(defaultCaptureY * yRatio);
-                    _charSelectCaptureWidth = Convert.ToInt32(defaultCaptureWidth * xRatio);
-                    _charSelectCaptureHeight = Convert.ToInt32(defaultCaptureHeight * yRatio);
-                }
-
-                // Ensure capture area is within screen bounds
-                if (_charSelectCaptureX + _charSelectCaptureWidth > screenWidth)
-                {
-                    _charSelectCaptureWidth = screenWidth - _charSelectCaptureX - 5;
-                }
-
-                if (_charSelectCaptureY + _charSelectCaptureHeight > screenHeight)
-                {
-                    _charSelectCaptureHeight = screenHeight - _charSelectCaptureY - 5;
-                }
-
-                // Log the adjusted capture area
-                Console.WriteLine($"Adjusted character selection capture area for resolution {screenWidth}x{screenHeight}:");
-                Console.WriteLine($"X={_charSelectCaptureX}, Y={_charSelectCaptureY}, W={_charSelectCaptureWidth}, H={_charSelectCaptureHeight}");
-            }
-            else
-            {
-                // Use default values for 1920x1080
-                _charSelectCaptureX = defaultCaptureX;
-                _charSelectCaptureY = defaultCaptureY;
-                _charSelectCaptureWidth = defaultCaptureWidth;
-                _charSelectCaptureHeight = defaultCaptureHeight;
-            }
-        }
-
-        // Add these fields to store the capture area coordinates
-        private int _charSelectCaptureX = 2010;
-        private int _charSelectCaptureY = 62;
-        private int _charSelectCaptureWidth = 380;
-        private int _charSelectCaptureHeight = 1031;
-
 
         public void VisualizeSelectionArea()
         {
@@ -1515,129 +1040,6 @@ namespace WoWServerManager
             }
         }
 
-        private async Task EnsureTessDataFilesAsync()
-        {
-            try
-            {
-                string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-                string engTrainedDataFile = Path.Combine(tessdataPath, "eng.traineddata");
-
-                // Ensure directory exists
-                if (!Directory.Exists(tessdataPath))
-                {
-                    Directory.CreateDirectory(tessdataPath);
-                }
-
-                // Check if the English language file exists
-                if (!File.Exists(engTrainedDataFile))
-                {
-                    // Show a message to the user
-                    var result = MessageBox.Show(
-                        "The OCR engine requires language data files which are not present.\n\n" +
-                        "Would you like to download the English language file now?\n" +
-                        "(This may take a minute or two depending on your connection)",
-                        "Missing OCR Data",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        // Show progress dialog
-                        var progressWindow = new Window
-                        {
-                            Title = "Downloading OCR Data",
-                            Width = 400,
-                            Height = 150,
-                            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                            ResizeMode = ResizeMode.NoResize,
-                            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30))
-                        };
-
-                        var progressPanel = new System.Windows.Controls.StackPanel
-                        {
-                            Margin = new Thickness(20)
-                        };
-
-                        var progressText = new System.Windows.Controls.TextBlock
-                        {
-                            Text = "Downloading English language data file...",
-                            Foreground = new SolidColorBrush(Colors.White),
-                            Margin = new Thickness(0, 0, 0, 10)
-                        };
-
-                        var progressBar = new System.Windows.Controls.ProgressBar
-                        {
-                            IsIndeterminate = true,
-                            Height = 20
-                        };
-
-                        progressPanel.Children.Add(progressText);
-                        progressPanel.Children.Add(progressBar);
-                        progressWindow.Content = progressPanel;
-
-                        progressWindow.Show();
-
-                        try
-                        {
-                            // Download the file asynchronously
-                            using (HttpClient client = new HttpClient())
-                            {
-                                // Set a user agent to avoid being blocked
-                                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 WoWServerManager");
-
-                                // URL to the eng.traineddata file from GitHub
-                                string url = "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata";
-
-                                // Download the file
-                                var response = await client.GetAsync(url);
-                                response.EnsureSuccessStatusCode();
-
-                                // Save to file
-                                using (var fileStream = new FileStream(engTrainedDataFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                                {
-                                    await response.Content.CopyToAsync(fileStream);
-                                }
-
-                                progressWindow.Close();
-
-                                MessageBox.Show(
-                                    "English language data file downloaded successfully!\n" +
-                                    "The character selection OCR feature is now ready to use.",
-                                    "Download Complete",
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Information);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            progressWindow.Close();
-
-                            MessageBox.Show(
-                                $"Error downloading language file: {ex.Message}\n\n" +
-                                "Please download the 'eng.traineddata' file manually and place it in the 'tessdata' folder.",
-                                "Download Error",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error);
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show(
-                            "Character selection by OCR will not work without the language data file.\n\n" +
-                            "If you want to enable this feature later, download 'eng.traineddata' file manually " +
-                            "and place it in the 'tessdata' folder.",
-                            "OCR Disabled",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error checking Tesseract data files: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private async Task AddExpansionWithAccounts()
         {
             // Add expansion
@@ -2045,22 +1447,21 @@ namespace WoWServerManager
 
         private static string GetExpansionIconPath(string expansionName)
         {
-            expansionName = expansionName?.ToLower() ?? "";
+            expansionName = expansionName.ToLower();
 
-            // Use pack URIs for proper resource loading in WPF
             return expansionName switch
             {
-                string s when s.Contains("classic") => "pack://application:,,,/Resources/Icons/classic_icon.png",
-                string s when s.Contains("burning crusade") => "pack://application:,,,/Resources/Icons/tbc_icon.png",
-                string s when s.Contains("lich king") => "pack://application:,,,/Resources/Icons/wotlk_icon.png",
-                string s when s.Contains("cataclysm") => "pack://application:,,,/Resources/Icons/cata_icon.png",
-                string s when s.Contains("pandaria") => "pack://application:,,,/Resources/Icons/mop_icon.png",
-                string s when s.Contains("draenor") => "pack://application:,,,/Resources/Icons/wod_icon.png",
-                string s when s.Contains("legion") => "pack://application:,,,/Resources/Icons/legion_icon.png",
-                string s when s.Contains("azeroth") => "pack://application:,,,/Resources/Icons/bfa_icon.png",
-                string s when s.Contains("shadowlands") => "pack://application:,,,/Resources/Icons/shadowlands_icon.png",
-                string s when s.Contains("dragonflight") => "pack://application:,,,/Resources/Icons/dragonflight_icon.png",
-                _ => "pack://application:,,,/Resources/Icons/default_icon.png"
+                string s when s.Contains("classic") => "/Resources/Icons/classic_icon.png",
+                string s when s.Contains("burning crusade") => "/Resources/Icons/tbc_icon.png",
+                string s when s.Contains("lich king") => "/Resources/Icons/wotlk_icon.png",
+                string s when s.Contains("cataclysm") => "/Resources/Icons/cata_icon.png",
+                string s when s.Contains("pandaria") => "/Resources/Icons/mop_icon.png",
+                string s when s.Contains("draenor") => "/Resources/Icons/wod_icon.png",
+                string s when s.Contains("legion") => "/Resources/Icons/legion_icon.png",
+                string s when s.Contains("azeroth") => "/Resources/Icons/bfa_icon.png",
+                string s when s.Contains("shadowlands") => "/Resources/Icons/shadowlands_icon.png",
+                string s when s.Contains("dragonflight") => "/Resources/Icons/dragonflight_icon.png",
+                _ => "/Resources/Icons/default_icon.png"
             };
         }
 
@@ -2312,24 +1713,6 @@ namespace WoWServerManager
                 return Pix.LoadFromMemory(ImageToByteArray(bitmap));
             }
         }
-        private Image<Gray, byte> ApplyCLAHE(Image<Gray, byte> image, double clipLimit = 2.0, System.Drawing.Size gridSize = default)
-        {
-            if (gridSize == default)
-                gridSize = new System.Drawing.Size(8, 8);
-
-            // Create a new Mat to store the result
-            Mat result = new Mat();
-
-            // Create a CLAHE object (or whatever equivalent your EmguCV version supports)
-            var clahe = CvInvoke.CreateCLAHE(clipLimit, gridSize);
-
-            // Apply CLAHE
-            clahe.Apply(image.Mat, result);
-
-            // Convert back to Image<Gray, byte>
-            return new Image<Gray, byte>(result.Bitmap);
-        }
-
 
         // Enhanced image preprocessing with EmguCV
         private Image<Gray, byte> PreprocessImageWithEmguCV(Image<Bgr, byte> originalImage)
@@ -2337,13 +1720,10 @@ namespace WoWServerManager
             // Convert to grayscale
             Image<Gray, byte> grayImage = originalImage.Convert<Gray, byte>();
 
-            // Apply bilateral filter to reduce noise while preserving edges
-            CvInvoke.BilateralFilter(grayImage, grayImage, 9, 75, 75);
+            // Enhance contrast
+            CvInvoke.EqualizeHist(grayImage, grayImage);
 
-            // Enhance contrast using CLAHE with our custom implementation
-            grayImage = ApplyCLAHE(grayImage, 2.0, new System.Drawing.Size(8, 8));
-
-            // Adaptive thresholding with calibrated parameters
+            // Adaptive thresholding - adjusted parameters for your specific WoW client
             Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
             CvInvoke.AdaptiveThreshold(
                 grayImage,
@@ -2351,293 +1731,20 @@ namespace WoWServerManager
                 255.0,
                 AdaptiveThresholdType.GaussianC,
                 ThresholdType.Binary,
-                _ocrBlockSize, // Use calibrated block size
-                _ocrCValue     // Use calibrated C value
+                13, // Increased block size for ultrawide monitor
+                8   // Adjusted C value for your specific WoW font
             );
 
-            // Apply morphological operations to clean up the text
+            // Apply morphological operations to clean up the image
             var element = CvInvoke.GetStructuringElement(ElementShape.Rectangle,
-                                                      new System.Drawing.Size(2, 2), // Smaller kernel for text details
+                                                      new DrawingSize(3, 3),
                                                       new Point(-1, -1));
 
-            // Opening operation to remove noise
+            // Opening operation (erosion followed by dilation) to remove noise
             CvInvoke.MorphologyEx(thresholdImage, thresholdImage, MorphOp.Open, element,
                                 new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
 
             return thresholdImage;
-        }
-
-        private System.Windows.Controls.Image ConvertBitmapToWpfImage(Bitmap bitmap)
-        {
-            using (MemoryStream memory = new MemoryStream())
-            {
-                bitmap.Save(memory, ImageFormat.Png);
-                memory.Position = 0;
-                BitmapImage bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.StreamSource = memory;
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.EndInit();
-
-                System.Windows.Controls.Image wpfImage = new System.Windows.Controls.Image();
-                wpfImage.Source = bitmapImage;
-                return wpfImage;
-            }
-        }
-
-
-        // Add a method to detect character selection screen
-        private Rectangle? FindCharacterSelectionArea(Image<Bgr, byte> image)
-        {
-            try
-            {
-                // Convert to HSV for better color detection
-                using (Image<Hsv, byte> hsvImage = image.Convert<Hsv, byte>())
-                {
-                    // First, look for gold/yellow highlights of selected character
-                    Hsv goldLower = new Hsv(20, 100, 150);
-                    Hsv goldUpper = new Hsv(40, 255, 255);
-
-                    using (Image<Gray, byte> goldMask = hsvImage.InRange(goldLower, goldUpper))
-                    {
-                        // Now look for blue UI elements common in WoW character selection
-                        Hsv blueLower = new Hsv(100, 80, 80);
-                        Hsv blueUpper = new Hsv(140, 255, 255);
-
-                        using (Image<Gray, byte> blueMask = hsvImage.InRange(blueLower, blueUpper))
-                        {
-                            // Combine masks
-                            Image<Gray, byte> combinedMask = goldMask.Or(blueMask);
-
-                            // Find contours in the combined mask
-                            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-                            CvInvoke.FindContours(
-                                combinedMask,
-                                contours,
-                                null,
-                                RetrType.List,
-                                ChainApproxMethod.ChainApproxSimple);
-
-                            // If we found contours, find the bounding rectangle
-                            if (contours.Size > 0)
-                            {
-                                // Get bounding rectangle of all contours
-                                Rectangle boundingRect = CvInvoke.BoundingRectangle(contours[0]);
-                                for (int i = 1; i < contours.Size; i++)
-                                {
-                                    boundingRect = Rectangle.Union(boundingRect,
-                                        CvInvoke.BoundingRectangle(contours[i]));
-                                }
-
-                                // Add padding
-                                int padding = 10;
-                                boundingRect = new Rectangle(
-                                    Math.Max(0, boundingRect.X - padding),
-                                    Math.Max(0, boundingRect.Y - padding),
-                                    Math.Min(image.Width - boundingRect.X + padding, boundingRect.Width + 2 * padding),
-                                    Math.Min(image.Height - boundingRect.Y + padding, boundingRect.Height + 2 * padding)
-                                );
-
-                                return boundingRect;
-                            }
-                        }
-                    }
-                }
-
-                // Fallback to default selection area
-                return null;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error finding character selection area: {ex.Message}");
-                return null;
-            }
-        }
-
-        // Add a debug visualization method for OCR results
-        public void VisualizeOcrResults()
-        {
-            try
-            {
-                // Capture the current screen for OCR
-                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
-                int captureX = 2010;
-                int captureY = 62;
-                int captureWidth = 380;
-                int captureHeight = 1031;
-
-                // Ensure the capture area is valid
-                if (captureX + captureWidth > screenBounds.Width)
-                    captureWidth = screenBounds.Width - captureX - 5;
-
-                if (captureY + captureHeight > screenBounds.Height)
-                    captureHeight = screenBounds.Height - captureY - 5;
-
-                // Capture area
-                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
-
-                // Create debug directory
-                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
-                if (!Directory.Exists(debugDir))
-                    Directory.CreateDirectory(debugDir);
-
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string originalPath = Path.Combine(debugDir, $"ocr_visual_original_{timestamp}.png");
-                string processedPath = Path.Combine(debugDir, $"ocr_visual_processed_{timestamp}.png");
-                string textPath = Path.Combine(debugDir, $"ocr_visual_text_{timestamp}.txt");
-
-                // Capture and save original
-                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
-                {
-                    using (Graphics g = Graphics.FromImage(bitmap))
-                    {
-                        g.CopyFromScreen(
-                            new Point(captureBounds.Left, captureBounds.Top),
-                            Point.Empty,
-                            captureBounds.Size);
-                    }
-                    bitmap.Save(originalPath, ImageFormat.Png);
-
-                    // Process with OCR pipeline
-                    using (Image<Bgr, byte> image = new Image<Bgr, byte>(bitmap))
-                    {
-                        // Try to detect the highlighted row
-                        Rectangle? highlightedArea = DetectHighlightedRow(image);
-
-                        Image<Bgr, byte> regionOfInterest;
-                        if (highlightedArea.HasValue)
-                        {
-                            // Crop to highlighted area
-                            regionOfInterest = image.Copy(highlightedArea.Value);
-                        }
-                        else
-                        {
-                            regionOfInterest = image.Clone();
-                        }
-
-                        // Process image
-                        var processedImage = PreprocessImageWithEmguCV(regionOfInterest);
-                        processedImage.Save(processedPath);
-
-                        // Perform OCR
-                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-                        string result = "";
-
-                        using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
-                        {
-                            engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
-                            engine.SetVariable("tessedit_pageseg_mode", "6");
-                            engine.SetVariable("tessedit_ocr_engine_mode", "2");
-
-                            using (var img = ConvertEmguCvImageToPix(processedImage))
-                            {
-                                using (var page = engine.Process(img, PageSegMode.SingleBlock))
-                                {
-                                    result = page.GetText().Trim();
-                                    File.WriteAllText(textPath, result);
-
-                                    // Show OCR results
-                                    var resultWindow = new Window
-                                    {
-                                        Title = "OCR Debug Results",
-                                        Width = 800,
-                                        Height = 600,
-                                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                                        Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30))
-                                    };
-
-                                    var grid = new System.Windows.Controls.Grid();
-                                    grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
-                                    grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                                    grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
-                                    grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                                    grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
-
-                                    // Original image header
-                                    var originalHeader = new System.Windows.Controls.TextBlock
-                                    {
-                                        Text = "Original Capture",
-                                        FontWeight = FontWeights.Bold,
-                                        Foreground = new SolidColorBrush(Colors.White),
-                                        Margin = new Thickness(10, 5, 0, 0)
-                                    };
-                                    System.Windows.Controls.Grid.SetRow(originalHeader, 0);
-                                    grid.Children.Add(originalHeader);
-
-                                    // Original image
-                                    var originalImage = new System.Windows.Controls.Image
-                                    {
-                                        Source = new BitmapImage(new Uri(originalPath, UriKind.Absolute)),
-                                        Stretch = Stretch.Uniform,
-                                        Margin = new Thickness(10)
-                                    };
-                                    System.Windows.Controls.Grid.SetRow(originalImage, 1);
-                                    grid.Children.Add(originalImage);
-
-                                    // Processed image header
-                                    var processedHeader = new System.Windows.Controls.TextBlock
-                                    {
-                                        Text = "Processed Image for OCR",
-                                        FontWeight = FontWeights.Bold,
-                                        Foreground = new SolidColorBrush(Colors.White),
-                                        Margin = new Thickness(10, 5, 0, 0)
-                                    };
-                                    System.Windows.Controls.Grid.SetRow(processedHeader, 2);
-                                    grid.Children.Add(processedHeader);
-
-                                    // Processed image
-                                    var processedImage2 = new System.Windows.Controls.Image
-                                    {
-                                        Source = new BitmapImage(new Uri(processedPath, UriKind.Absolute)),
-                                        Stretch = Stretch.Uniform,
-                                        Margin = new Thickness(10)
-                                    };
-                                    System.Windows.Controls.Grid.SetRow(processedImage2, 3);
-                                    grid.Children.Add(processedImage2);
-
-                                    // OCR results
-                                    var resultsPanel = new System.Windows.Controls.StackPanel
-                                    {
-                                        Orientation = System.Windows.Controls.Orientation.Horizontal,
-                                        Margin = new Thickness(10, 5, 10, 5)
-                                    };
-
-                                    var resultsLabel = new System.Windows.Controls.TextBlock
-                                    {
-                                        Text = "OCR Results:",
-                                        FontWeight = FontWeights.Bold,
-                                        Foreground = new SolidColorBrush(Colors.White),
-                                        VerticalAlignment = VerticalAlignment.Center,
-                                        Margin = new Thickness(0, 0, 10, 0)
-                                    };
-
-                                    var resultsText = new System.Windows.Controls.TextBlock
-                                    {
-                                        Text = result,
-                                        Foreground = new SolidColorBrush(Colors.Yellow),
-                                        VerticalAlignment = VerticalAlignment.Center,
-                                        TextWrapping = TextWrapping.Wrap
-                                    };
-
-                                    resultsPanel.Children.Add(resultsLabel);
-                                    resultsPanel.Children.Add(resultsText);
-
-                                    System.Windows.Controls.Grid.SetRow(resultsPanel, 4);
-                                    grid.Children.Add(resultsPanel);
-
-                                    // Set content and show
-                                    resultWindow.Content = grid;
-                                    resultWindow.ShowDialog();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error visualizing OCR results: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
 
         // Improved character matching logic
@@ -2650,15 +1757,10 @@ namespace WoWServerManager
             string targetName = character.Name.ToLower();
             string targetClass = character.Class?.ToLower() ?? "";
 
-            // Name matching with higher weight
-            // Exact name match gets highest score
-            if (ContainsExactCharacterName(lowerText, targetName))
+            // Name matching (more strict) - use improved fuzzy matching
+            if (lowerText.Contains(targetName))
             {
-                score += 0.8; // Even higher weight for exact name match
-            }
-            else if (lowerText.Contains(targetName))
-            {
-                score += 0.7; // Strong match for name contained in text
+                score += 0.7; // Strong match for exact name
             }
             else
             {
@@ -2667,65 +1769,37 @@ namespace WoWServerManager
                 score += nameScore * 0.5; // Weight partial matches
             }
 
-            // Class matching with enhanced pattern detection
+            // Class matching (more strict)
             if (!string.IsNullOrWhiteSpace(character.Class))
             {
-                // Try different class formats (Mage, mage, MAG, etc.)
                 if (lowerText.Contains(targetClass))
                 {
                     score += 0.2;
                 }
                 else
                 {
-                    // Common class abbreviations and variations
-                    var classVariations = new List<string>();
+                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
+                    string classAbbrev = character.Class.Length > 3
+                        ? character.Class.Substring(0, 3).ToLower()
+                        : character.Class.ToLower();
 
-                    // Standard abbreviation (first 3 chars)
-                    if (targetClass.Length > 3)
-                        classVariations.Add(targetClass.Substring(0, 3));
-
-                    // Class-specific abbreviations
-                    switch (targetClass)
+                    if (lowerText.Contains(classAbbrev))
                     {
-                        case "warrior": classVariations.Add("war"); break;
-                        case "paladin": classVariations.Add("pal"); classVariations.Add("pally"); break;
-                        case "hunter": classVariations.Add("hunt"); break;
-                        case "rogue": classVariations.Add("rog"); break;
-                        case "priest": classVariations.Add("pri"); break;
-                        case "death knight": classVariations.Add("dk"); classVariations.Add("death"); break;
-                        case "shaman": classVariations.Add("sham"); classVariations.Add("shammy"); break;
-                        case "mage": classVariations.Add("mag"); break;
-                        case "warlock": classVariations.Add("lock"); classVariations.Add("wlock"); break;
-                        case "monk": classVariations.Add("mnk"); break;
-                        case "druid": classVariations.Add("dru"); break;
-                        case "demon hunter": classVariations.Add("dh"); classVariations.Add("demon"); break;
-                        case "evoker": classVariations.Add("evo"); break;
-                    }
-
-                    // Check for class variations
-                    foreach (var variation in classVariations)
-                    {
-                        if (lowerText.Contains(variation))
-                        {
-                            score += 0.15;
-                            break;
-                        }
+                        score += 0.1;
                     }
                 }
             }
 
-            // Level matching (with expanded formats)
+            // Level matching (with various formats)
             string[] levelPatterns = {
-        $"level {character.Level}",
-        $"lvl {character.Level}",
-        $"lvl{character.Level}",
-        $"level{character.Level}",
-        $"lv {character.Level}",
-        $"lv{character.Level}",
-        $"level: {character.Level}",
-        $"level:{character.Level}",
-        $"{character.Level}"  // Raw number (might appear after name)
-    };
+                $"level {character.Level}",
+                $"lvl {character.Level}",
+                $"lvl{character.Level}",
+                $"level{character.Level}",
+                $"lv {character.Level}",
+                $"lv{character.Level}",
+                $"{character.Level}"
+            };
 
             foreach (var pattern in levelPatterns)
             {
@@ -2734,16 +1808,6 @@ namespace WoWServerManager
                     score += 0.15;
                     break;
                 }
-            }
-
-            // Pattern bonus: Look for the typical pattern in WoW character selection
-            // Format is usually "Name Level XX Class"
-            string fullPattern = $"{targetName.ToLower()} level {character.Level} {targetClass.ToLower()}";
-            string altPattern = $"{targetName.ToLower()} lvl {character.Level} {targetClass.ToLower()}";
-
-            if (lowerText.Contains(fullPattern) || lowerText.Contains(altPattern))
-            {
-                score += 0.15; // Bonus for matching the exact expected pattern
             }
 
             return Math.Min(score, 1.0);
@@ -2865,25 +1929,6 @@ namespace WoWServerManager
             }
         }
 
-        private void EnsureIconDirectoriesExist()
-        {
-            try
-            {
-                string iconsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Icons");
-                if (!Directory.Exists(iconsPath))
-                {
-                    Directory.CreateDirectory(iconsPath);
-
-                    // Log directory creation
-                    Console.WriteLine($"Created icons directory at: {iconsPath}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating icons directory: {ex.Message}");
-            }
-        }
-
         // Method to extract screenshots from WoW client for testing
         public void CaptureCharacterScreenForTesting()
         {
@@ -2918,12 +1963,11 @@ namespace WoWServerManager
         }
 
         // Keep the existing ImageToByteArray method
-        private byte[] BitmapToByteArray(Bitmap bitmap)
+        private byte[] ImageToByteArray(Image image)
         {
-            // Create a byte array to hold the image data
             using (MemoryStream ms = new MemoryStream())
             {
-                bitmap.Save(ms, ImageFormat.Png);
+                image.Save(ms, ImageFormat.Png);
                 return ms.ToArray();
             }
         }
@@ -2972,78 +2016,6 @@ namespace WoWServerManager
             {
                 return $"Error: {ex.Message}";
             }
-        }
-
-        public string GetCharacterSelectionRecommendations()
-        {
-            StringBuilder recommendations = new StringBuilder();
-            recommendations.AppendLine("## Character Selection Recommendations ##");
-            recommendations.AppendLine();
-
-            if (SelectedAccount?.SelectedCharacter == null)
-            {
-                recommendations.AppendLine("No character is currently selected. Please select a character first.");
-                return recommendations.ToString();
-            }
-
-            Character target = SelectedAccount.SelectedCharacter;
-
-            recommendations.AppendLine($"Target Character: {target.Name}");
-            recommendations.AppendLine($"Level: {target.Level}");
-            recommendations.AppendLine($"Class: {target.Class}");
-            recommendations.AppendLine();
-
-            // Check if name has special characters that might be hard for OCR
-            bool hasSpecialChars = target.Name.Any(c => !char.IsLetterOrDigit(c));
-            if (hasSpecialChars)
-            {
-                recommendations.AppendLine("⚠️ Character name contains special characters which may be difficult for OCR to recognize.");
-                recommendations.AppendLine("   Consider using a character with a simpler name for more reliable selection.");
-            }
-
-            // Check if the name is very short
-            if (target.Name.Length < 4)
-            {
-                recommendations.AppendLine("⚠️ Character name is very short. Short names may not be distinctive enough for reliable OCR detection.");
-            }
-
-            // Check if class is set
-            if (string.IsNullOrWhiteSpace(target.Class))
-            {
-                recommendations.AppendLine("⚠️ Character class is not set. Setting the class improves selection accuracy.");
-            }
-
-            // Check if level is set
-            if (target.Level <= 0)
-            {
-                recommendations.AppendLine("⚠️ Character level is not set or invalid. Setting the correct level improves selection accuracy.");
-            }
-
-            // Check for english.traineddata
-            string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-            string engTrainedDataFile = Path.Combine(tessdataPath, "eng.traineddata");
-            if (!File.Exists(engTrainedDataFile))
-            {
-                recommendations.AppendLine("⚠️ OCR language file (eng.traineddata) is missing. Character selection may not work properly.");
-                recommendations.AppendLine("   Run the application as administrator and allow it to download the file when prompted.");
-            }
-
-            // Add recommendation for calibration
-            string calibrationFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ocr_calibration.json");
-            if (!File.Exists(calibrationFile))
-            {
-                recommendations.AppendLine("⚠️ OCR has not been calibrated. Running the calibration may improve selection accuracy.");
-                recommendations.AppendLine("   Use the 'Calibrate OCR' button for best results.");
-            }
-
-            // If no issues found
-            if (recommendations.Length <= 100)
-            {
-                recommendations.AppendLine("✓ Character selection setup looks good! All necessary information is provided.");
-                recommendations.AppendLine("  For best results, make sure your WoW client is running in windowed mode or borderless fullscreen.");
-            }
-
-            return recommendations.ToString();
         }
 
         // Add a method for automatic tuning of OCR parameters
@@ -3162,315 +2134,6 @@ namespace WoWServerManager
                 Console.WriteLine($"Error in parameter testing: {ex.Message}");
             }
         }
-
-        public async Task CalibrateCharacterSelectionOcr()
-        {
-            MessageBox.Show("Character selection OCR calibration will begin.\n\n" +
-                           "Please make sure:\n" +
-                           "1. WoW is running and on the character selection screen\n" +
-                           "2. Your selected character is highlighted\n" +
-                           "3. Don't move your mouse or use keyboard during calibration",
-                           "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            // Create debug directory
-            string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
-            if (!Directory.Exists(debugDir))
-                Directory.CreateDirectory(debugDir);
-
-            // First, take a reference screenshot
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string referencePath = Path.Combine(debugDir, $"calibration_reference_{timestamp}.png");
-
-            // Capture full screen for reference
-            using (Bitmap fullScreen = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height))
-            {
-                using (Graphics g = Graphics.FromImage(fullScreen))
-                {
-                    g.CopyFromScreen(Point.Empty, Point.Empty, Screen.PrimaryScreen.Bounds.Size);
-                }
-                fullScreen.Save(referencePath, ImageFormat.Png);
-            }
-
-            // Wait for a moment between captures
-            await Task.Delay(500);
-
-            // Test all preprocessing parameter combinations
-            List<(int blockSize, int cValue, double score)> results = new List<(int, int, double)>();
-
-            // Block sizes should always be odd numbers for adaptiveThreshold
-            int[] blockSizes = { 7, 9, 11, 13, 15 };
-            int[] cValues = { 2, 4, 6, 8, 10 };
-
-            // Show progress dialog
-            var progressWindow = new Window
-            {
-                Title = "OCR Calibration Progress",
-                Width = 400,
-                Height = 150,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.NoResize,
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30))
-            };
-
-            var progressPanel = new System.Windows.Controls.StackPanel
-            {
-                Margin = new Thickness(20)
-            };
-
-            var progressText = new System.Windows.Controls.TextBlock
-            {
-                Text = "Testing OCR parameters...",
-                Foreground = new SolidColorBrush(Colors.White),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            var progressBar = new System.Windows.Controls.ProgressBar
-            {
-                Minimum = 0,
-                Maximum = blockSizes.Length * cValues.Length,
-                Height = 20,
-                Value = 0
-            };
-
-            progressPanel.Children.Add(progressText);
-            progressPanel.Children.Add(progressBar);
-            progressWindow.Content = progressPanel;
-
-            progressWindow.Show();
-
-            int currentTest = 0;
-            int totalTests = blockSizes.Length * cValues.Length;
-
-            // Test each parameter combination
-            foreach (int blockSize in blockSizes)
-            {
-                foreach (int cValue in cValues)
-                {
-                    currentTest++;
-                    double score = await TestOcrParametersAsync(blockSize, cValue);
-                    results.Add((blockSize, cValue, score));
-
-                    // Update progress UI
-                    WpfApplication.Current.Dispatcher.Invoke(() => {
-                        progressText.Text = $"Testing OCR parameters: {currentTest}/{totalTests}";
-                        progressBar.Value = currentTest;
-                    });
-
-                    // Wait between tests
-                    await Task.Delay(300);
-                }
-            }
-
-            // Close progress window
-            progressWindow.Close();
-
-            // Find the best parameter combination
-            var bestResult = results.OrderByDescending(r => r.score).First();
-
-            // Save the optimal parameters to a calibration file
-            string calibrationFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ocr_calibration.json");
-            var calibrationData = new
-            {
-                BlockSize = bestResult.blockSize,
-                CValue = bestResult.cValue,
-                CalibrationTimestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                ScreenWidth = Screen.PrimaryScreen.Bounds.Width,
-                ScreenHeight = Screen.PrimaryScreen.Bounds.Height
-            };
-
-            File.WriteAllText(calibrationFile, JsonSerializer.Serialize(calibrationData, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
-
-            // Update application to use these parameters
-            _ocrBlockSize = bestResult.blockSize;
-            _ocrCValue = bestResult.cValue;
-
-            MessageBox.Show($"Calibration complete!\n\nBest parameters found:\nBlock Size: {bestResult.blockSize}\nC Value: {bestResult.cValue}\n\nThese settings have been saved and will be used for character selection.",
-                            "Calibration Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        // Add these field variables to store OCR parameters
-        private int _ocrBlockSize = 11; // Default value
-        private int _ocrCValue = 8;     // Default value
-
-        // Add the method to test OCR parameters
-        private async Task<double> TestOcrParametersAsync(int blockSize, int cValue)
-        {
-            try
-            {
-                // Create debug directory
-                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
-                if (!Directory.Exists(debugDir))
-                    Directory.CreateDirectory(debugDir);
-
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-
-                // Get screen bounds
-                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
-
-                // Use the same capture area as the character selection
-                int captureX = 2010;
-                int captureY = 62;
-                int captureWidth = 380;
-                int captureHeight = 1031;
-
-                // Ensure the capture area stays within screen bounds
-                if (captureX + captureWidth > screenBounds.Width)
-                {
-                    captureWidth = screenBounds.Width - captureX - 5;
-                }
-
-                if (captureY + captureHeight > screenBounds.Height)
-                {
-                    captureHeight = screenBounds.Height - captureY - 5;
-                }
-
-                // Capture the area
-                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
-
-                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
-                {
-                    using (Graphics g = Graphics.FromImage(bitmap))
-                    {
-                        g.CopyFromScreen(
-                            new Point(captureBounds.Left, captureBounds.Top),
-                            Point.Empty,
-                            captureBounds.Size);
-                    }
-
-                    // Save the test image
-                    string imagePath = Path.Combine(debugDir, $"test_b{blockSize}_c{cValue}_{timestamp}.png");
-                    bitmap.Save(imagePath, ImageFormat.Png);
-
-                    // Process the image using EmguCV with the test parameters
-                    using (Image<Bgr, byte> image = new Image<Bgr, byte>(bitmap))
-                    {
-                        // Convert to grayscale
-                        Image<Gray, byte> grayImage = image.Convert<Gray, byte>();
-
-                        // Apply bilateral filter and CLAHE
-                        CvInvoke.BilateralFilter(grayImage, grayImage, 9, 75, 75);
-
-                        var clahe = new Emgu.CV.CvInvoke.Mat();
-                        var claheTool = CvInvoke.CreateCLAHE(2.0, new DrawingSize(8, 8));
-                        claheTool.Apply(grayImage, clahe);
-                        grayImage = new Image<Gray, byte>(clahe.Bitmap);
-
-                        // Apply custom parameters for thresholding
-                        Image<Gray, byte> thresholdImage = new Image<Gray, byte>(grayImage.Size);
-                        CvInvoke.AdaptiveThreshold(
-                            grayImage,
-                            thresholdImage,
-                            255.0,
-                            AdaptiveThresholdType.GaussianC,
-                            ThresholdType.Binary,
-                            blockSize,
-                            cValue
-                        );
-
-                        // Save the processed image
-                        string processedPath = Path.Combine(debugDir, $"processed_b{blockSize}_c{cValue}_{timestamp}.png");
-                        thresholdImage.Save(processedPath);
-
-                        // Perform OCR
-                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-                        string result = "";
-
-                        try
-                        {
-                            using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
-                            {
-                                engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
-                                engine.SetVariable("tessedit_pageseg_mode", "6");
-                                engine.SetVariable("tessedit_ocr_engine_mode", "2");
-
-                                using (var img = ConvertEmguCvImageToPix(thresholdImage))
-                                {
-                                    using (var page = engine.Process(img, PageSegMode.SingleBlock))
-                                    {
-                                        result = page.GetText().Trim();
-                                        string resultPath = Path.Combine(debugDir, $"ocr_b{blockSize}_c{cValue}_{timestamp}.txt");
-                                        File.WriteAllText(resultPath, result);
-
-                                        // Calculate score based on:
-                                        // 1. Mean confidence from Tesseract
-                                        // 2. Number of WoW-related keywords detected
-                                        double meanConfidence = page.GetMeanConfidence();
-
-                                        // Count known WoW keywords in the OCR result
-                                        string[] wowKeywords = {"level", "lvl", "warrior", "paladin", "hunter", "rogue", "priest",
-                                                        "shaman", "mage", "warlock", "druid", "monk", "death knight",
-                                                        "demon hunter", "evoker", "alliance", "horde", "character", "realm"};
-
-                                        int keywordMatches = 0;
-                                        foreach (string keyword in wowKeywords)
-                                        {
-                                            if (result.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                                                keywordMatches++;
-                                        }
-
-                                        // Calculate combined score (70% confidence, 30% keyword presence)
-                                        double keywordFactor = (double)keywordMatches / wowKeywords.Length;
-                                        double combinedScore = (meanConfidence * 0.7) + (keywordFactor * 0.3);
-
-                                        return combinedScore;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"OCR error for blockSize={blockSize}, cValue={cValue}: {ex.Message}");
-                            return 0.0;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Parameter test error: {ex.Message}");
-                return 0.0;
-            }
-        }
-
-        // Add method to load OCR calibration if available
-        private void LoadOcrCalibration()
-        {
-            try
-            {
-                string calibrationFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ocr_calibration.json");
-                if (File.Exists(calibrationFile))
-                {
-                    string json = File.ReadAllText(calibrationFile);
-                    using (JsonDocument doc = JsonDocument.Parse(json))
-                    {
-                        JsonElement root = doc.RootElement;
-
-                        if (root.TryGetProperty("BlockSize", out JsonElement blockSizeElement) &&
-                            blockSizeElement.TryGetInt32(out int blockSize))
-                        {
-                            _ocrBlockSize = blockSize;
-                        }
-
-                        if (root.TryGetProperty("CValue", out JsonElement cValueElement) &&
-                            cValueElement.TryGetInt32(out int cValue))
-                        {
-                            _ocrCValue = cValue;
-                        }
-
-                        Console.WriteLine($"Loaded OCR calibration: BlockSize={_ocrBlockSize}, CValue={_ocrCValue}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading OCR calibration: {ex.Message}");
-            }
-        }
-
-
 
         public class Server : INotifyPropertyChanged
         {
