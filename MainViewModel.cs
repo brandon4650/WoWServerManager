@@ -132,7 +132,7 @@ namespace WoWServerManager
         public ICommand GetCharacterRecommendationsCommand { get; }
         public ICommand VisualizeOcrResultsCommand { get; }
         public ICommand DebugOcrOverlayCommand { get; }
-
+        public ICommand OpenSettingsCommand { get; }
         public MainViewModel()
         {
             LoadConfig();
@@ -156,6 +156,7 @@ namespace WoWServerManager
             SaveConfigCommand = new RelayCommand(_ => SaveConfig());
 
             ShowHowToUseCommand = new RelayCommand(_ => ShowHowToUse());
+            OpenSettingsCommand = new RelayCommand(_ => OpenSettings());
 
             // Disable all character-related functionality with informative messages
             string featureDisabledMsg = "Character selection features are disabled in this version.";
@@ -553,6 +554,13 @@ namespace WoWServerManager
             });
 
             parent.Children.Add(sectionBorder);
+        }
+
+        private void OpenSettings()
+        {
+            var settingsWindow = new SettingsWindow();
+            settingsWindow.Owner = Application.Current.MainWindow;
+            settingsWindow.ShowDialog();
         }
 
         // Add the PropertyChanged event and OnPropertyChanged method
