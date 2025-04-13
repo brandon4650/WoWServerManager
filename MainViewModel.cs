@@ -1748,7 +1748,7 @@ namespace WoWServerManager
             {
                 Text = title,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(0, 10, 0, 5)
             });
 
@@ -3090,7 +3090,7 @@ namespace WoWServerManager
         }
 
         // Keep the existing ImageToByteArray method
-        private byte[] ImageToByteArray(Image image)
+        private byte[] ImageToByteArray(System.Drawing.Image image)
         {
             using (MemoryStream ms = new MemoryStream())
             {
