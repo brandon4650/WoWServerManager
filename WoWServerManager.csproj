@@ -2,11 +2,15 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net6.0-windows</TargetFramework>
+		<!-- Both WPF and Windows Forms are used in this application -->
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 		<WindowsPackageType>None</WindowsPackageType>
+		<SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<ApplicationIcon>Resources\wow-icon.ico</ApplicationIcon>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -21,14 +25,9 @@
 		<None Remove="Resources\Icons\wod_icon.png" />
 		<None Remove="Resources\Icons\wotlk_icon.png" />
 	</ItemGroup>
-	<ItemGroup>
-		<COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
-			<WrapperTool>tlbimp</WrapperTool>
-			<VersionMinor>4</VersionMinor>
-			<VersionMajor>2</VersionMajor>
-			<Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
-		</COMReference>
-	</ItemGroup>
+
+	<!-- Removed COM reference that was likely for OCR/image processing -->
+
 	<ItemGroup>
 		<Resource Include="Resources\Icons\bfa_icon.png">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -64,37 +63,11 @@
 		<Resource Include="Resources\wow-icon.ico" />
 		<Resource Include="Resources\wow-icon.png" />
 	</ItemGroup>
+
 	<ItemGroup>
-		<PackageReference Include="Emgu.CV" Version="4.10.0.5680" />
-		<PackageReference Include="Emgu.CV.Bitmap" Version="4.10.0.5680" />
-		<PackageReference Include="Emgu.CV.runtime.windows" Version="4.10.0.5680" />
-		<PackageReference Include="IronPython" Version="3.4.2" />
+		<!-- Removed all OCR and image processing packages -->
+		<!-- Kept only essential packages for Windows compatibility -->
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="System.Drawing.Common" Version="9.0.0" />
 		<PackageReference Include="Microsoft.Windows.Compatibility" Version="7.0.0" />
-		<PackageReference Include="Tesseract" Version="5.2.0" />
-		<PackageReference Include="Tesseract.Drawing" Version="5.2.0" />
 	</ItemGroup>
-
-	<!-- Create runtimeconfig.json to properly handle System.Drawing settings -->
-	<ItemGroup>
-		<None Include="$(OutDir)\runtimeconfig.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
-
-	<Target Name="CreateRuntimeConfigJson" BeforeTargets="Build">
-		<PropertyGroup>
-			<RuntimeConfigContent>
-				{
-				"runtimeOptions": {
-				"configProperties": {
-				"System.Drawing.EnableUnixSupport": false
-				}
-				}
-				}
-			</RuntimeConfigContent>
-		</PropertyGroup>
-		<WriteLinesToFile File="$(OutDir)\runtimeconfig.json" Lines="$(RuntimeConfigContent)" Overwrite="true" />
-	</Target>
 </Project>
