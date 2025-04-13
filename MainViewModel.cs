@@ -2057,7 +2057,9 @@ namespace WoWServerManager
         }
 
         private static string GetExpansionIconPath(string expansionName)
+
         {
+            
             expansionName = expansionName.ToLower();
 
             return expansionName switch
@@ -2078,6 +2080,11 @@ namespace WoWServerManager
 
         private async void TestCharacterSelection()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                MessageBox.Show("This feature requires Windows.", "Platform Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
             if (SelectedAccount == null)
             {
                 MessageBox.Show("Please select an account with characters first.", "Selection Required", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -3092,6 +3099,7 @@ namespace WoWServerManager
         // Keep the existing ImageToByteArray method
         private byte[] ImageToByteArray(System.Drawing.Image image)
         {
+
             using (MemoryStream ms = new MemoryStream())
             {
                 image.Save(ms, ImageFormat.Png);
@@ -3148,36 +3156,57 @@ namespace WoWServerManager
         // Add a method for automatic tuning of OCR parameters
         private void OptimizeOcrParameters()
         {
-            // This can be called during setup or from a separate "Calibrate OCR" button
-            MessageBox.Show("Please make sure your WoW client is open and on the character selection screen.",
-                            "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
-            if (!Directory.Exists(debugDir))
-                Directory.CreateDirectory(debugDir);
-
-            // First, capture the current screen
-            CaptureCharacterScreenForTesting();
-
-            // Offer to run OCR tests with different parameters
-            var result = MessageBox.Show("Would you like to test OCR with different parameters?",
-                                       "OCR Calibration", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            try
             {
-                // Sample a few different configurations and log results
-                // This is a simplified example - in practice, you'd iterate through more parameter combinations
-                TestOcrWithParameters(11, 5);  // Default params
-                TestOcrWithParameters(9, 3);   // Less aggressive
-                TestOcrWithParameters(15, 7);  // More aggressive
+                // This can be called during setup or from a separate "Calibrate OCR" button
+                MessageBox.Show("Please make sure your WoW client is open and on the character selection screen.",
+                                "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                MessageBox.Show("OCR calibration complete. Check the OCR_Debug/Calibration folder for results.",
-                              "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Calibration");
+                if (!Directory.Exists(debugDir))
+                    Directory.CreateDirectory(debugDir);
+
+                // First, capture the current screen
+                CaptureCharacterScreenForTesting();
+
+                // Offer to run OCR tests with different parameters
+                var result = MessageBox.Show("Would you like to test OCR with different parameters?",
+                                           "OCR Calibration", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Sample a few different configurations and log results
+                    // This is a simplified example - in practice, you'd iterate through more parameter combinations
+                    TestOcrWithParameters(11, 5);  // Default params
+                    TestOcrWithParameters(9, 3);   // Less aggressive
+                    TestOcrWithParameters(15, 7);  // More aggressive
+
+                    MessageBox.Show("OCR calibration complete. Check the OCR_Debug/Calibration folder for results.",
+                                    "OCR Calibration", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                MessageBox.Show(
+                    "System.Drawing functionality is not available on this system. This can happen if your Windows installation is missing components. " +
+                    "Please ensure you're running on Windows with .NET Desktop Runtime installed.",
+                    "Platform Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during OCR calibration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void TestOcrWithParameters(int blockSize, int cValue)
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                MessageBox.Show("This feature requires Windows.", "Platform Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
             try
             {
                 // Get screen bounds (focus on right side where character list appears)
