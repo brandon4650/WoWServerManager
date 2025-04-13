@@ -6,43 +6,60 @@
         xmlns:local="clr-namespace:WoWServerManager"
         mc:Ignorable="d"
         Title="World of Warcraft Server Manager" 
-        Height="700" Width="1350"
+        Height="800" Width="1300"
         WindowStartupLocation="CenterScreen"
-        Background="#0C0C0C">
+        Background="#0c0c17">
 
     <Window.Resources>
-        <!-- WoW Theme Colors -->
-        <SolidColorBrush x:Key="WoWGold" Color="#FFCC00"/>
-        <SolidColorBrush x:Key="WoWBlue" Color="#004A7F"/>
-        <SolidColorBrush x:Key="WoWDarkBlue" Color="#002040"/>
-        <SolidColorBrush x:Key="WoWLightBlue" Color="#00AAFF"/>
-        <SolidColorBrush x:Key="WoWBackgroundDark" Color="#0C0C0C"/>
-        <SolidColorBrush x:Key="WoWBackgroundMedium" Color="#1A1A1A"/>
+        <!-- Design 8 Theme Colors -->
+        <Color x:Key="ColorBackground">#0c0c17</Color>
+        <Color x:Key="ColorSurface">#131426</Color>
+        <Color x:Key="ColorSurfaceRaised">#1a1c36</Color>
+        <Color x:Key="ColorPrimary">#ffcc00</Color>
+        <Color x:Key="ColorPrimaryDark">#e6b800</Color>
+        <Color x:Key="ColorBorder">#2b2d4a</Color>
+        <Color x:Key="ColorTextPrimary">#ffffff</Color>
+        <Color x:Key="ColorTextSecondary">#b8b9cf</Color>
+        <Color x:Key="ColorTextTertiary">#7f8296</Color>
+
+        <!-- Brushes -->
+        <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource ColorBackground}"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource ColorSurface}"/>
+        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource ColorSurfaceRaised}"/>
+        <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource ColorPrimary}"/>
+        <SolidColorBrush x:Key="PrimaryDarkBrush" Color="{StaticResource ColorPrimaryDark}"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource ColorBorder}"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource ColorTextPrimary}"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource ColorTextSecondary}"/>
+        <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource ColorTextTertiary}"/>
+        <SolidColorBrush x:Key="PrimaryLightBrush" Color="#33ffcc00"/>
 
         <!-- Button Styles -->
-        <Style x:Key="WoWButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource WoWDarkBlue}"/>
-            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="15,5"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
+                                CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource WoWBlue}"/>
+                                <Setter Property="Background" Value="#323559"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#003366"/>
+                                <Setter Property="Background" Value="#3b3e5e"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -50,231 +67,167 @@
             </Setter>
         </Style>
 
-        <!-- ComboBox Style -->
-        <Style x:Key="WoWComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="{StaticResource WoWBackgroundMedium}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <Style x:Key="ButtonPrimaryStyle" TargetType="Button" BasedOn="{StaticResource ButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource BackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource BackgroundBrush}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
-        <!-- ListBox Style -->
-        <Style x:Key="WoWListBoxStyle" TargetType="ListBox">
-            <Setter Property="Background" Value="{StaticResource WoWBackgroundMedium}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WoWGold}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <Style x:Key="SmallButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonStyle}">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
 
-        <!-- Label Style -->
-        <Style x:Key="WoWLabelStyle" TargetType="Label">
-            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-        </Style>
-
-        <!-- TextBlock Header Style -->
-        <Style x:Key="WoWHeaderStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource WoWGold}"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="Margin" Value="0,10,0,5"/>
-        </Style>
-
-        <!-- Custom Data Templates for ListBoxes -->
-        <DataTemplate x:Key="ExpansionTemplate">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="#AAAAAA" FontSize="11"/>
-                </StackPanel>
-
-                <Image Grid.Column="1" 
-               Source="{Binding IconPath}" 
-               Width="48" Height="48" 
-               Margin="25,0,0,0" 
-               VerticalAlignment="Top"
-               HorizontalAlignment="Right"
-               Stretch="Uniform"/>
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="AccountTemplate">
-            <StackPanel Margin="3">
-                <TextBlock Text="{Binding Username}" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Foreground="#AAAAAA" FontSize="11">
-                    <Run Text="Server:"/>
-                    <Run Text="{Binding Expansion.Server.Name}"/>
-                    <Run Text=" | Expansion:"/>
-                    <Run Text="{Binding Expansion.Name}"/>
-                </TextBlock>
-            </StackPanel>
-        </DataTemplate>
-    </Window.Resources>
-
-    <Grid>
-        <Grid.Background>
-            <ImageBrush Opacity="0.2" Stretch="UniformToFill" ImageSource="/Resources/wow-background.jpg"/>
-        </Grid.Background>
-
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#222222" BorderBrush="{StaticResource WoWGold}" BorderThickness="0,0,0,1">
-            <Grid>
-                <StackPanel Orientation="Horizontal" Margin="10">
-                    <Image Source="/Resources/wow-icon.png" Width="48" Height="48" Margin="0,0,15,0"/>
-                    <TextBlock Text="WORLD OF WARCRAFT SERVER MANAGER" FontSize="24" FontWeight="Bold" 
-                       Foreground="{StaticResource WoWGold}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Button x:Name="HowToUseButton" Content="How to Use" Style="{StaticResource WoWButtonStyle}" 
-                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
-                Command="{Binding ShowHowToUseCommand}"/>
-            </Grid>
-        </Border>
-
-        <!-- Main Content -->
-        <Grid Grid.Row="1" Margin="20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                
-            </Grid.ColumnDefinitions>
-
-            <!-- Server Selection -->
-            <StackPanel Grid.Column="0" Margin="10">
-                <TextBlock Text="SERVERS" Style="{StaticResource WoWHeaderStyle}"/>
-                <ListBox x:Name="ServerListBox" Height="300" 
-                 ItemsSource="{Binding Servers}"
-                 SelectedItem="{Binding SelectedServer}"
-                 DisplayMemberPath="Name"
-                 Style="{StaticResource WoWListBoxStyle}"/>
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <Button x:Name="AddServerButton" Content="Add Server" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding AddServerCommand}"/>
-                    <Button x:Name="EditServerButton" Content="Edit Server" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding EditServerCommand}"/>
-                    <Button x:Name="RemoveServerButton" Content="Remove Server" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding RemoveServerCommand}"/>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- Expansion Selection -->
-            <StackPanel Grid.Column="1" Margin="10">
-                <TextBlock Text="EXPANSIONS" Style="{StaticResource WoWHeaderStyle}"/>
-                <ListBox x:Name="ExpansionListBox" Height="300" 
-                 ItemsSource="{Binding Expansions}"
-                 SelectedItem="{Binding SelectedExpansion}"
-                 ItemTemplate="{StaticResource ExpansionTemplate}"
-                 Style="{StaticResource WoWListBoxStyle}"/>
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <Button x:Name="AddExpansionButton" Content="Add Expansion" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding AddExpansionCommand}"/>
-                    <Button x:Name="EditExpansionButton" Content="Edit Expansion" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding EditExpansionCommand}"/>
-                    <Button x:Name="RemoveExpansionButton" Content="Remove Expansion" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding RemoveExpansionCommand}"/>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- Account Selection -->
-            <StackPanel Grid.Column="2" Margin="10">
-                <TextBlock Text="ACCOUNTS" Style="{StaticResource WoWHeaderStyle}"/>
-                <ListBox x:Name="AccountListBox" Height="300" 
-                 ItemsSource="{Binding Accounts}"
-                 SelectedItem="{Binding SelectedAccount}"
-                 ItemTemplate="{StaticResource AccountTemplate}"
-                 Style="{StaticResource WoWListBoxStyle}"/>
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <Button x:Name="AddAccountButton" Content="Add Account" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding AddAccountCommand}"/>
-                    <Button x:Name="EditAccountButton" Content="Edit Account" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding EditAccountCommand}"/>
-                    <Button x:Name="RemoveAccountButton" Content="Remove Account" Style="{StaticResource WoWButtonStyle}"
-                    Command="{Binding RemoveAccountCommand}"/>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- Character Selection - NEW -->
-            <StackPanel Grid.Column="3" Margin="10">
-                <TextBlock Text="CHARACTERS" Style="{StaticResource WoWHeaderStyle}"/>
-                <!-- Warning message directly below the header -->
-                <Border Background="#002040" BorderBrush="{StaticResource WoWGold}" BorderThickness="1" 
-        Margin="0,5,0,10" Padding="5,3">
-                    <TextBlock Foreground="{StaticResource WoWGold}" 
-                   TextWrapping="Wrap"
-                   FontSize="11">
-            <Run Text="⚠️ " FontWeight="Bold"/>
-            <Run Text="Character selection is still under development and may not always select the correct character."/>
-                    </TextBlock>
-                </Border>
-
-                <!-- Grid to contain both ListBox and the banner -->
-                <Grid>
-                    <!-- Original ListBox -->
-                    <ListBox x:Name="CharacterListBox" Height="300" 
-                 ItemsSource="{Binding Characters}"
-                 SelectedItem="{Binding SelectedCharacter}"
-                 Style="{StaticResource WoWListBoxStyle}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="3">
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Class}" Foreground="{StaticResource WoWGold}" Margin="0,0,5,0"/>
-                                        <TextBlock Text="Level:" Foreground="#AAAAAA" FontSize="11" Margin="0,0,3,0"/>
-                                        <TextBlock Text="{Binding Level}" Foreground="#AAAAAA" FontSize="11"/>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding Realm, StringFormat='Realm: {0}'}" Foreground="#AAAAAA" FontSize="11"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <!-- Diagonal DISABLED banner -->
-                    <Grid SnapsToDevicePixels="True" IsHitTestVisible="False">
-                        <Grid.LayoutTransform>
-                            <RotateTransform Angle="-35"/>
-                        </Grid.LayoutTransform>
-                        <Border Background="#FFE100" 
-                    Width="300" 
-                    Height="50" 
-                    HorizontalAlignment="Center" 
-                    VerticalAlignment="Center">
-                            <TextBlock Text="DISABLED" 
-                           FontSize="24" 
-                           FontWeight="Bold" 
-                           Foreground="Black" 
-                           HorizontalAlignment="Center" 
-                           VerticalAlignment="Center"/>
+        <Style x:Key="NavButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NavBorder" Background="{TemplateBinding Background}"
+                                BorderThickness="0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         </Border>
-                    </Grid>
-                </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" TargetName="NavBorder"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <Button x:Name="AddCharacterButton" Content="Add Character" Style="{StaticResource WoWButtonStyle}"
-                Command="{Binding AddCharacterCommand}"/>
-                    <Button x:Name="EditCharacterButton" Content="Edit Character" Style="{StaticResource WoWButtonStyle}"
-                Command="{Binding EditCharacterCommand}"/>
-                    <Button x:Name="RemoveCharacterButton" Content="Remove Character" Style="{StaticResource WoWButtonStyle}"
-                Command="{Binding RemoveCharacterCommand}"/>
-                </StackPanel>
-            </StackPanel>
-        </Grid>
+        <Style x:Key="NavButtonActiveStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource PrimaryLightBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NavBorder" Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- Footer with Launch Button -->
-        <Border Grid.Row="2" Background="#222222" BorderBrush="{StaticResource WoWGold}" BorderThickness="0,1,0,0">
-            <Grid Margin="20,10">
+        <!-- ListBox Styles -->
+        <Style x:Key="ModernListBoxStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False">
+                                <ItemsPresenter />
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ListBox Item Style -->
+        <Style x:Key="ModernListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#323559" TargetName="ItemBorder"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" TargetName="ItemBorder"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryLightBrush}" TargetName="ItemBorder"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" TargetName="ItemBorder"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Card Style -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" Direction="270" Color="Black" Opacity="0.2" BlurRadius="4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Card Header Style -->
+        <Style x:Key="CardHeaderStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+
+        <!-- Card Content Style -->
+        <Style x:Key="CardContentStyle" TargetType="Border">
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+
+        <!-- Card Footer Style -->
+        <Style x:Key="CardFooterStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+
+        <!-- Data Templates -->
+        <DataTemplate x:Key="ServerItemTemplate">
+            <Grid>
+                <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ExpansionItemTemplate">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -284,47 +237,381 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Selected Items Info -->
-                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical">
-                    <TextBlock Foreground="White" FontWeight="SemiBold">
-                        <Run Text="Selected Server: "/>
-                        <Run Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-                    </TextBlock>
-                    <TextBlock Foreground="White" FontWeight="SemiBold">
-                        <Run Text="Selected Expansion: "/>
-                        <Run Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-                    </TextBlock>
-                    <TextBlock Foreground="White" FontWeight="SemiBold">
-                        <Run Text="Selected Account: "/>
-                        <Run Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-                    </TextBlock>
-                    <TextBlock Foreground="White" FontWeight="SemiBold">
-                        <Run Text="Selected Character: "/>
-                        <Run Text="{Binding SelectedCharacter.Name, FallbackValue='None'}" Foreground="{StaticResource WoWGold}"/>
-                        <Run Text="{Binding SelectedCharacter.Level, StringFormat=' (Level {0})', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
-                        <Run Text="{Binding SelectedCharacter.Class, StringFormat=' {0}', FallbackValue=''}" Foreground="{StaticResource WoWGold}"/>
-                    </TextBlock>
-                </StackPanel>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <Image Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Source="{Binding IconPath}" Width="32" Height="32"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+            </Grid>
+        </DataTemplate>
 
-                <!-- Main Action Buttons -->
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="SaveConfigButton" Content="Save Configuration" Style="{StaticResource WoWButtonStyle}" 
-                    Command="{Binding SaveConfigCommand}" Margin="5,0"/>
-                    <Button x:Name="LaunchGameButton" Content="LAUNCH GAME" FontSize="16" 
-                    Style="{StaticResource WoWButtonStyle}" Command="{Binding LaunchGameCommand}"
-                    Padding="20,10" Margin="5,0"/>
-                </StackPanel>
+        <DataTemplate x:Key="AccountItemTemplate">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- OCR Tools Row -->
-                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                    <TextBlock Text="Character Selection Tools:" VerticalAlignment="Center" Foreground="White" Margin="0,0,10,0"/>
-                    <Button Content="Calibrate OCR" Style="{StaticResource WoWButtonStyle}" Command="{Binding CalibrateOcrCommand}" Margin="5,0" ToolTip="Run this to optimize OCR parameters for your screen"/>
-                    <Button Content="Test Selection" Style="{StaticResource WoWButtonStyle}" Command="{Binding TestCharacterSelectionCommand}" Margin="5,0" ToolTip="Test if your character can be detected without launching the game"/>
-                    <Button Content="OCR Analysis" Style="{StaticResource WoWButtonStyle}" Command="{Binding GetCharacterRecommendationsCommand}" Margin="5,0" ToolTip="Get recommendations for improving character selection"/>
-                    <Button Content="Debug OCR" Style="{StaticResource WoWButtonStyle}" Command="{Binding VisualizeOcrResultsCommand}" Margin="5,0" ToolTip="See what the OCR engine is detecting"/>
-                    <Button Content="Overlay Debug" Style="{StaticResource WoWButtonStyle}" Command="{Binding DebugOcrOverlayCommand}" Margin="5,0" ToolTip="Show capture area overlay for debugging"/>
+                <TextBlock Grid.Row="0" Text="{Binding Username}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Grid.Row="1" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0">
+                    <Run Text="Server:"/>
+                    <Run Text="{Binding Expansion.Server.Name}"/>
+                    <Run Text=" | Expansion:"/>
+                    <Run Text="{Binding Expansion.Name}"/>
+                </TextBlock>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="CharacterItemTemplate">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                    <TextBlock Text="{Binding Class}" Foreground="{StaticResource PrimaryBrush}" FontSize="12"/>
+                    <TextBlock Text=" | " Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text="Level:" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
+                    <TextBlock Text="{Binding Level}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text=" | " Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text="Realm:" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
+                    <TextBlock Text="{Binding Realm}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
                 </StackPanel>
             </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Left Sidebar -->
+        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="4" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="20,20,20,30">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="/Resources/wow-icon.ico" Width="32" Height="32" Margin="0,0,12,0"/>
+                        <TextBlock Text="WoW Manager" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button DockPanel.Dock="Bottom" Content="LAUNCH GAME" Style="{StaticResource ButtonPrimaryStyle}" Margin="20" Padding="15,12" 
+                        FontSize="16" FontWeight="Bold" Command="{Binding LaunchGameCommand}"/>
+
+                <StackPanel>
+                    <TextBlock Text="MANAGEMENT" Margin="20,0,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
+                    <StackPanel>
+                        <!-- Dashboard button (already active by default) -->
+                        <Button Style="{StaticResource NavButtonActiveStyle}" Margin="0,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource PrimaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Dashboard" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Server navigation button -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                Command="{Binding ElementName=ServerListBox, Path=Focus}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Servers" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Expansion navigation button -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                Command="{Binding ElementName=ExpansionListBox, Path=Focus}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Expansions" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Accounts navigation button -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                Command="{Binding ElementName=AccountListBox, Path=Focus}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Accounts" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Characters navigation button -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                Command="{Binding ElementName=CharacterListBox, Path=Focus}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Characters" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <TextBlock Text="SETTINGS" Margin="20,30,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
+                    <StackPanel>
+                        <!-- Preferences button -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Preferences" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Help button with ShowHowToUseCommand -->
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2" Command="{Binding ShowHowToUseCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
+                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                </Border>
+                                <TextBlock Text="Help" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Header -->
+        <Border Grid.Column="1" Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="24,0">
+                <TextBlock Text="World of Warcraft Server Manager" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Save Configuration" Style="{StaticResource ButtonStyle}" Command="{Binding SaveConfigCommand}" Margin="8,0"/>
+                    <Button Content="How to Use" Style="{StaticResource ButtonPrimaryStyle}" Command="{Binding ShowHowToUseCommand}" Margin="8,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Column="1" Grid.Row="1" Padding="24" Background="{StaticResource BackgroundBrush}">
+            <StackPanel>
+                <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,24"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Servers Card -->
+                    <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,12,24" Height="360">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="SERVERS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                                <ListBox x:Name="ServerListBox" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{StaticResource ServerItemTemplate}"/>
+                            </Border>
+
+                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                                <Grid>
+                                    <Button Content="Add Server" Style="{StaticResource ButtonStyle}" Command="{Binding AddServerCommand}" HorizontalAlignment="Left"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditServerCommand}"/>
+                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveServerCommand}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Expansions Card -->
+                    <Border Grid.Column="1" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="12,0,0,24" Height="360">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="EXPANSIONS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                                <ListBox x:Name="ExpansionListBox" ItemsSource="{Binding Expansions}" SelectedItem="{Binding SelectedExpansion}"
+                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{StaticResource ExpansionItemTemplate}"/>
+                            </Border>
+
+                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                                <Grid>
+                                    <Button Content="Add Expansion" Style="{StaticResource ButtonStyle}" Command="{Binding AddExpansionCommand}" HorizontalAlignment="Left"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditExpansionCommand}"/>
+                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveExpansionCommand}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Accounts Card -->
+                    <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,12,24" Height="360">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="ACCOUNTS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                                <ListBox x:Name="AccountListBox" ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}"
+                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{StaticResource AccountItemTemplate}"/>
+                            </Border>
+
+                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                                <Grid>
+                                    <Button Content="Add Account" Style="{StaticResource ButtonStyle}" Command="{Binding AddAccountCommand}" HorizontalAlignment="Left"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditAccountCommand}"/>
+                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveAccountCommand}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Characters Card -->
+                    <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="12,0,0,24" Height="360">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="CHARACTERS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                                <Grid>
+                                    <!-- ListBox for Characters -->
+                                    <ListBox x:Name="CharacterListBox" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                                             Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                                             ItemTemplate="{StaticResource CharacterItemTemplate}"/>
+
+                                    <!-- Disabled Overlay -->
+                                    <Border Background="#BB0c0c17" Panel.ZIndex="1">
+                                        <Grid>
+                                            <Border Background="{StaticResource PrimaryBrush}" Width="250" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                                    RenderTransformOrigin="0.5,0.5" Panel.ZIndex="2">
+                                                <Border.RenderTransform>
+                                                    <RotateTransform Angle="-35"/>
+                                                </Border.RenderTransform>
+                                                <TextBlock Text="DISABLED" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BackgroundBrush}" 
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                                <Grid>
+                                    <Button Content="Add Character" Style="{StaticResource ButtonStyle}" Command="{Binding AddCharacterCommand}" HorizontalAlignment="Left"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditCharacterCommand}"/>
+                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveCharacterCommand}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Status Bar -->
+        <Border Grid.Column="1" Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="24,12">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Margin="0,0,32,0">
+                        <TextBlock Text="SERVER" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,32,0">
+                        <TextBlock Text="EXPANSION" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,32,0">
+                        <TextBlock Text="ACCOUNT" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Content="Save Configuration" Style="{StaticResource ButtonStyle}" Command="{Binding SaveConfigCommand}" HorizontalAlignment="Right"/>
+            </Grid>
+        </Border>
+
+        <!-- Tools Bar -->
+        <Border Grid.Column="1" Grid.Row="3" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,8">
+                <TextBlock Text="Character Selection Tools:" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Button Content="Calibrate OCR" Style="{StaticResource SmallButtonStyle}" Command="{Binding CalibrateOcrCommand}" Margin="3,0"/>
+                <Button Content="Test Selection" Style="{StaticResource SmallButtonStyle}" Command="{Binding TestCharacterSelectionCommand}" Margin="3,0"/>
+                <Button Content="OCR Analysis" Style="{StaticResource SmallButtonStyle}" Command="{Binding GetCharacterRecommendationsCommand}" Margin="3,0"/>
+                <Button Content="Debug OCR" Style="{StaticResource SmallButtonStyle}" Command="{Binding VisualizeOcrResultsCommand}" Margin="3,0"/>
+                <Button Content="Overlay Debug" Style="{StaticResource SmallButtonStyle}" Command="{Binding DebugOcrOverlayCommand}" Margin="3,0"/>
+            </StackPanel>
         </Border>
     </Grid>
 </Window>
