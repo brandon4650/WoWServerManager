@@ -13,6 +13,7 @@ using System.Text.Json;
 using System.Windows.Forms; // For SendKeys
 using System.Runtime.InteropServices;
 
+using System.Windows.Input;
 // Explicitly using WPF MessageBox
 using MessageBox = System.Windows.MessageBox;
 using System.Text.Json.Serialization;
@@ -32,6 +33,7 @@ using WpfApplication = System.Windows.Application;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
 using System.Text.RegularExpressions;
+using System.Windows.Controls;
 
 namespace WoWServerManager
 {
@@ -175,6 +177,11 @@ namespace WoWServerManager
 
         public ICommand DebugOcrOverlayCommand { get; }
 
+        public ICommand CalibrateOcrCommand { get; }
+        public ICommand TestCharacterSelectionCommand { get; }
+        public ICommand GetCharacterRecommendationsCommand { get; }
+        public ICommand VisualizeOcrResultsCommand { get; }
+
 
         public MainViewModel()
         {
@@ -206,6 +213,11 @@ namespace WoWServerManager
             ShowHowToUseCommand = new RelayCommand(_ => ShowHowToUse());
 
             DebugOcrOverlayCommand = new RelayCommand(_ => VisualizeSelectionArea());
+
+            CalibrateOcrCommand = new RelayCommand(_ => OptimizeOcrParameters());
+            TestCharacterSelectionCommand = new RelayCommand(_ => TestCharacterSelection(), _ => SelectedAccount != null);
+            GetCharacterRecommendationsCommand = new RelayCommand(_ => GetCharacterDetectionRecommendations());
+            VisualizeOcrResultsCommand = new RelayCommand(_ => VisualizeOcrResults());
         }
 
         private void LoadConfig()
@@ -1161,6 +1173,585 @@ namespace WoWServerManager
             }
         }
 
+        private void VisualizeOcrResults()
+        {
+            // Similar to the Test Character Selection but with focus on OCR output visualization
+            MessageBox.Show(
+                "This will visualize what the OCR engine sees when attempting to detect characters.\n\n" +
+                "Please make sure your WoW client is open with the character selection screen visible.",
+                "Visualize OCR Results",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            try
+            {
+                string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Visualization");
+                if (!Directory.Exists(debugDir))
+                    Directory.CreateDirectory(debugDir);
+
+                // Take a screenshot
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string originalPath = Path.Combine(debugDir, $"ocr_original_{timestamp}.png");
+                string processedPath = Path.Combine(debugDir, $"ocr_processed_{timestamp}.png");
+                string highlightPath = Path.Combine(debugDir, $"ocr_highlight_{timestamp}.png");
+                string resultPath = Path.Combine(debugDir, $"ocr_result_{timestamp}.txt");
+
+                // Capture the character list area
+                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
+                int captureX = 2010;
+                int captureY = 62;
+                int captureWidth = 380;
+                int captureHeight = 1031;
+
+                // Ensure the capture area stays within screen bounds
+                if (captureX + captureWidth > screenBounds.Width)
+                {
+                    captureWidth = screenBounds.Width - captureX - 5;
+                }
+
+                if (captureY + captureHeight > screenBounds.Height)
+                {
+                    captureHeight = screenBounds.Height - captureY - 5;
+                }
+
+                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
+
+                // Capture the screen area
+                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
+                {
+                    using (Graphics g = Graphics.FromImage(bitmap))
+                    {
+                        g.CopyFromScreen(
+                            new Point(captureBounds.Left, captureBounds.Top),
+                            Point.Empty,
+                            captureBounds.Size);
+                    }
+
+                    bitmap.Save(originalPath, System.Drawing.Imaging.ImageFormat.Png);
+                }
+
+                // Process the image with EmguCV
+                using (Image<Bgr, byte> image = new Image<Bgr, byte>(originalPath))
+                {
+                    // Try to detect the highlighted row
+                    Rectangle? highlightedArea = DetectHighlightedRow(image);
+
+                    // Draw a rectangle around the highlighted area if found
+                    if (highlightedArea.HasValue)
+                    {
+                        Rectangle roi = highlightedArea.Value;
+                        // Create a copy of the original image with a highlighted rectangle
+                        using (Image<Bgr, byte> highlightedImage = image.Clone())
+                        {
+                            // Draw a red rectangle around the highlighted area
+                            MCvScalar redColor = new MCvScalar(0, 0, 255); // BGR format
+                            CvInvoke.Rectangle(highlightedImage, roi, redColor, 3);
+                            highlightedImage.Save(highlightPath);
+
+                            // Crop to the highlighted area
+                            using (Image<Bgr, byte> croppedImage = image.Copy(roi))
+                            {
+                                // Process the cropped image
+                                var processedImage = PreprocessImageWithEmguCV(croppedImage);
+                                processedImage.Save(processedPath);
+
+                                // Perform OCR
+                                string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                                using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                                {
+                                    engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
+                                    engine.SetVariable("tessedit_pageseg_mode", "6");
+                                    engine.SetVariable("tessedit_ocr_engine_mode", "2");
+                                    engine.SetVariable("language_model_penalty_non_dict_word", "0.1");
+                                    engine.SetVariable("language_model_penalty_case", "0.1");
+
+                                    using (var img = ConvertEmguCvImageToPix(processedImage))
+                                    {
+                                        using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                                        {
+                                            string result = page.GetText().Trim();
+                                            File.WriteAllText(resultPath, result);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // No highlight found, process the entire image
+                        var processedImage = PreprocessImageWithEmguCV(image);
+                        processedImage.Save(processedPath);
+
+                        // Perform OCR on the whole image
+                        string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                        using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                        {
+                            engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
+                            engine.SetVariable("tessedit_pageseg_mode", "6");
+                            engine.SetVariable("tessedit_ocr_engine_mode", "2");
+                            engine.SetVariable("language_model_penalty_non_dict_word", "0.1");
+                            engine.SetVariable("language_model_penalty_case", "0.1");
+
+                            using (var img = ConvertEmguCvImageToPix(processedImage))
+                            {
+                                using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                                {
+                                    string result = page.GetText().Trim();
+                                    File.WriteAllText(resultPath, result);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Show a visualization window with the results
+                var visualWindow = new Window
+                {
+                    Title = "OCR Visualization Results",
+                    Width = 1000,
+                    Height = 800,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
+
+                var grid = new System.Windows.Controls.Grid();
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.Margin = new Thickness(20);
+
+                // Header
+                var header = new System.Windows.Controls.TextBlock
+                {
+                    Text = "OCR VISUALIZATION RESULTS",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 15)
+                };
+                System.Windows.Controls.Grid.SetRow(header, 0);
+                System.Windows.Controls.Grid.SetColumnSpan(header, 2);
+                grid.Children.Add(header);
+
+                // Create a panel for the images
+                var imagesPanel = new System.Windows.Controls.Grid();
+                imagesPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                imagesPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                imagesPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+                imagesPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                imagesPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                imagesPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                System.Windows.Controls.Grid.SetRow(imagesPanel, 1);
+                System.Windows.Controls.Grid.SetColumn(imagesPanel, 0);
+
+                // Labels and images
+                var originalLabel = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Original Capture",
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Colors.White),
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(originalLabel, 0);
+                System.Windows.Controls.Grid.SetColumn(originalLabel, 0);
+                imagesPanel.Children.Add(originalLabel);
+
+                // Original image
+                var originalImage = new System.Windows.Controls.Image
+                {
+                    Margin = new Thickness(5),
+                    Stretch = Stretch.Uniform,
+                    StretchDirection = StretchDirection.DownOnly
+                };
+                var originalBitmap = new BitmapImage();
+                originalBitmap.BeginInit();
+                originalBitmap.UriSource = new Uri(originalPath, UriKind.Absolute);
+                originalBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                originalBitmap.EndInit();
+                originalImage.Source = originalBitmap;
+                System.Windows.Controls.Grid.SetRow(originalImage, 1);
+                System.Windows.Controls.Grid.SetColumn(originalImage, 0);
+                imagesPanel.Children.Add(originalImage);
+
+                // Highlighted image (if available)
+                if (File.Exists(highlightPath))
+                {
+                    var highlightedLabel = new System.Windows.Controls.TextBlock
+                    {
+                        Text = "Highlighted Row Detection",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(5)
+                    };
+                    System.Windows.Controls.Grid.SetRow(highlightedLabel, 0);
+                    System.Windows.Controls.Grid.SetColumn(highlightedLabel, 1);
+                    imagesPanel.Children.Add(highlightedLabel);
+
+                    var highlightedImage = new System.Windows.Controls.Image
+                    {
+                        Margin = new Thickness(5),
+                        Stretch = Stretch.Uniform,
+                        StretchDirection = StretchDirection.DownOnly
+                    };
+                    var highlightBitmap = new BitmapImage();
+                    highlightBitmap.BeginInit();
+                    highlightBitmap.UriSource = new Uri(highlightPath, UriKind.Absolute);
+                    highlightBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    highlightBitmap.EndInit();
+                    highlightedImage.Source = highlightBitmap;
+                    System.Windows.Controls.Grid.SetRow(highlightedImage, 1);
+                    System.Windows.Controls.Grid.SetColumn(highlightedImage, 1);
+                    imagesPanel.Children.Add(highlightedImage);
+                }
+
+                // Processed image
+                var processedLabel = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Processed for OCR",
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Colors.White),
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(processedLabel, 2);
+                System.Windows.Controls.Grid.SetColumn(processedLabel, 0);
+                imagesPanel.Children.Add(processedLabel);
+
+                var processedImage = new System.Windows.Controls.Image
+                {
+                    Margin = new Thickness(5),
+                    Stretch = Stretch.Uniform,
+                    StretchDirection = StretchDirection.DownOnly
+                };
+                var processedBitmap = new BitmapImage();
+                processedBitmap.BeginInit();
+                processedBitmap.UriSource = new Uri(processedPath, UriKind.Absolute);
+                processedBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                processedBitmap.EndInit();
+                processedImage.Source = processedBitmap;
+                System.Windows.Controls.Grid.SetRow(processedImage, 3);
+                System.Windows.Controls.Grid.SetColumn(processedImage, 0);
+                imagesPanel.Children.Add(processedImage);
+
+                // OCR Results panel
+                var resultsPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(10) };
+                System.Windows.Controls.Grid.SetRow(resultsPanel, 1);
+                System.Windows.Controls.Grid.SetColumn(resultsPanel, 1);
+
+                // OCR Result heading
+                resultsPanel.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "OCR RESULTS",
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    FontSize = 16,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                // OCR Result text
+                string ocrText = File.Exists(resultPath) ? File.ReadAllText(resultPath) : "No OCR results available";
+                var ocrTextBox = new System.Windows.Controls.TextBox
+                {
+                    Text = ocrText,
+                    IsReadOnly = true,
+                    TextWrapping = TextWrapping.Wrap,
+                    Height = 300,
+                    VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    Foreground = new SolidColorBrush(Colors.White),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 0, 15)
+                };
+                resultsPanel.Children.Add(ocrTextBox);
+
+                // Character matching section
+                if (SelectedAccount != null && SelectedAccount.Characters.Count > 0)
+                {
+                    resultsPanel.Children.Add(new System.Windows.Controls.TextBlock
+                    {
+                        Text = "CHARACTER MATCHING",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                        FontSize = 16,
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+
+                    // Create a grid for character matching
+                    var matchGrid = new System.Windows.Controls.Grid();
+                    matchGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    matchGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                    // Headers
+                    matchGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+
+                    var charHeader = new System.Windows.Controls.TextBlock
+                    {
+                        Text = "Character",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(5)
+                    };
+                    System.Windows.Controls.Grid.SetRow(charHeader, 0);
+                    System.Windows.Controls.Grid.SetColumn(charHeader, 0);
+                    matchGrid.Children.Add(charHeader);
+
+                    var scoreHeader = new System.Windows.Controls.TextBlock
+                    {
+                        Text = "Match Score",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(5)
+                    };
+                    System.Windows.Controls.Grid.SetRow(scoreHeader, 0);
+                    System.Windows.Controls.Grid.SetColumn(scoreHeader, 1);
+                    matchGrid.Children.Add(scoreHeader);
+
+                    // Add each character's match score
+                    int row = 1;
+                    Character bestMatch = null;
+                    double bestScore = 0;
+
+                    foreach (var character in SelectedAccount.Characters)
+                    {
+                        matchGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+
+                        // Calculate match score
+                        double score = CalculateCharacterMatchScore(ocrText, character);
+                        bool hasExactMatch = ContainsExactCharacterName(ocrText, character.Name);
+
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            bestMatch = character;
+                        }
+
+                        // Character name
+                        var nameText = new System.Windows.Controls.TextBlock
+                        {
+                            Text = $"{character.Name} (Lvl {character.Level} {character.Class})",
+                            Foreground = new SolidColorBrush(Colors.White),
+                            Margin = new Thickness(5)
+                        };
+                        System.Windows.Controls.Grid.SetRow(nameText, row);
+                        System.Windows.Controls.Grid.SetColumn(nameText, 0);
+                        matchGrid.Children.Add(nameText);
+
+                        // Score
+                        var scoreText = new System.Windows.Controls.TextBlock
+                        {
+                            Text = $"{score:P0}{(hasExactMatch ? " (Exact Name)" : "")}",
+                            Foreground = new SolidColorBrush(score >= 0.85 ? Colors.LightGreen :
+                                       (score >= 0.65 ? Colors.Yellow : Colors.Red)),
+                            FontWeight = FontWeights.Bold,
+                            Margin = new Thickness(5)
+                        };
+                        System.Windows.Controls.Grid.SetRow(scoreText, row);
+                        System.Windows.Controls.Grid.SetColumn(scoreText, 1);
+                        matchGrid.Children.Add(scoreText);
+
+                        row++;
+                    }
+
+                    // Add to a border
+                    var matchBorder = new System.Windows.Controls.Border
+                    {
+                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                        BorderThickness = new Thickness(1),
+                        Margin = new Thickness(0, 0, 0, 15)
+                    };
+                    matchBorder.Child = matchGrid;
+                    resultsPanel.Children.Add(matchBorder);
+
+                    // Best match summary
+                    if (bestMatch != null)
+                    {
+                        var bestMatchText = new System.Windows.Controls.TextBlock
+                        {
+                            Text = $"Best Match: {bestMatch.Name} ({bestScore:P0})",
+                            Foreground = new SolidColorBrush(bestScore >= 0.85 ? Colors.LightGreen :
+                                        (bestScore >= 0.65 ? Colors.Yellow : Colors.Red)),
+                            FontWeight = FontWeights.Bold,
+                            Margin = new Thickness(0, 0, 0, 15)
+                        };
+                        resultsPanel.Children.Add(bestMatchText);
+                    }
+                }
+
+                grid.Children.Add(imagesPanel);
+                grid.Children.Add(resultsPanel);
+
+                // Add a close button
+                var closeButton = new System.Windows.Controls.Button
+                {
+                    Content = "Close",
+                    Width = 120,
+                    Height = 30,
+                    Margin = new Thickness(0, 15, 0, 0),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Style = System.Windows.Application.Current.Resources["WoWButtonStyle"] as Style
+                };
+                closeButton.Click += (sender, args) => visualWindow.Close();
+                System.Windows.Controls.Grid.SetRow(closeButton, 2);
+                System.Windows.Controls.Grid.SetColumnSpan(closeButton, 2);
+                grid.Children.Add(closeButton);
+
+                visualWindow.Content = grid;
+                visualWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error visualizing OCR results: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void GetCharacterDetectionRecommendations()
+        {
+            // Create a recommendations window
+            var recommendationsWindow = new Window
+            {
+                Title = "Character Detection Recommendations",
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+
+            var mainPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(20) };
+
+            // Header
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "IMPROVING CHARACTER DETECTION",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(0, 0, 0, 20)
+            });
+
+            // Introduction
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Character detection using OCR can be challenging due to the visual complexity of World of Warcraft's interface. " +
+                       "Here are detailed recommendations to improve detection accuracy:",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Recommendations
+            AddRecommendationSection(mainPanel, "1. CHARACTER NAMES",
+                "• Character names should match EXACTLY what appears in-game\n" +
+                "• Avoid special characters in names that may confuse OCR\n" +
+                "• The current system is most accurate with names 4-12 characters long\n" +
+                "• Names with unique spelling are easier to detect than common words"
+            );
+
+            AddRecommendationSection(mainPanel, "2. CHARACTER POSITIONING",
+                "• Position your preferred character at the top of the character list if possible\n" +
+                "• Characters that appear in the middle of the list are easier to detect than those at the bottom\n" +
+                "• Character highlighting (the gold/yellow selection) significantly improves detection\n" +
+                "• Consider reordering characters in-game to match your selection preferences"
+            );
+
+            AddRecommendationSection(mainPanel, "3. INTERFACE SETTINGS",
+                "• Use the default UI font and size for best OCR results\n" +
+                "• Disable any addons that modify the character selection screen\n" +
+                "• Higher resolution displays generally provide better OCR results\n" +
+                "• If using an ultrawide monitor, use the 'Overlay Debug' to adjust the capture area"
+            );
+
+            AddRecommendationSection(mainPanel, "4. CHARACTER DETAILS",
+                "• Include accurate level and class information for each character\n" +
+                "• Class names should match what appears in-game (e.g., 'Death Knight' not 'DK')\n" +
+                "• Realm names should match exactly what appears in the character list\n" +
+                "• When adding new characters, launch the game first to confirm exact spelling"
+            );
+
+            AddRecommendationSection(mainPanel, "5. TROUBLESHOOTING",
+                "• Use 'Test Selection' to check detection without launching the game\n" +
+                "• Use 'OCR Analysis' to see what text is being detected from the screen\n" +
+                "• Use 'Calibrate OCR' if you're having persistent issues\n" +
+                "• If automatic selection fails, you can always manually select your character"
+            );
+
+            // Add a note about the current algorithm
+            var algorithmNote = new System.Windows.Controls.Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 15, 0, 15)
+            };
+
+            algorithmNote.Child = new System.Windows.Controls.TextBlock
+            {
+                Text = "NOTE: The character selection algorithm has been significantly enhanced to now detect highlighted rows, " +
+                      "match exact character names, and use fuzzy matching when exact matches aren't found. These improvements " +
+                      "should make character selection much more reliable.",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Colors.White)
+            };
+
+            mainPanel.Children.Add(algorithmNote);
+
+            // Close button
+            var closeButton = new System.Windows.Controls.Button
+            {
+                Content = "Close",
+                Width = 120,
+                Height = 30,
+                Margin = new Thickness(0, 15, 0, 0),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Style = System.Windows.Application.Current.Resources["WoWButtonStyle"] as Style
+            };
+            closeButton.Click += (sender, args) => recommendationsWindow.Close();
+            mainPanel.Children.Add(closeButton);
+
+            // Add the panel to a scroll viewer
+            var scrollViewer = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto
+            };
+            scrollViewer.Content = mainPanel;
+
+            recommendationsWindow.Content = scrollViewer;
+            recommendationsWindow.ShowDialog();
+        }
+
+        private void AddRecommendationSection(System.Windows.Controls.StackPanel parent, string title, string content)
+        {
+            // Section title
+            parent.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = title,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(0, 10, 0, 5)
+            });
+
+            // Section content
+            var contentBorder = new System.Windows.Controls.Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                BorderBrush = new SolidColorBrush(Colors.Gray),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            contentBorder.Child = new System.Windows.Controls.TextBlock
+            {
+                Text = content,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Colors.White)
+            };
+
+            parent.Children.Add(contentBorder);
+        }
+
         private async Task<bool> SelectCharacterByName(string characterName)
         {
             const int maxAttempts = 15;
@@ -1169,12 +1760,9 @@ namespace WoWServerManager
             const int initialDelay = 1500;
             const int navigationDelay = 600;
 
-            // Define character highlight color ranges in HSV
-            Hsv goldColorLower = new Hsv(20, 100, 150);  // Lower bound for gold/yellow
-            Hsv goldColorUpper = new Hsv(70, 255, 255);  // Upper bound for gold/yellow
-
             if (SelectedAccount?.SelectedCharacter == null)
             {
+                // If no character is selected, just press enter on whatever is highlighted
                 SendKeys.SendWait("{ENTER}");
                 return false;
             }
@@ -1205,22 +1793,14 @@ namespace WoWServerManager
             // First, check if the currently selected character (highlighted) is the one we want
             string currentHighlightText = CaptureScreenText();
             double currentScore = CalculateCharacterMatchScore(currentHighlightText, target);
+            bool exactNameMatch = ContainsExactCharacterName(currentHighlightText, target.Name);
 
-            Console.WriteLine($"Initial highlighted character: Score {currentScore:F2}\nText: {currentHighlightText}");
+            Console.WriteLine($"Initial highlighted character: Score {currentScore:F2}, Exact match: {exactNameMatch}\nText: {currentHighlightText}");
 
-            // If the currently selected character is a good match, use it immediately
-            if (currentScore >= highConfidenceThreshold)
+            // If the currently selected character is a good match or has exact name match, use it immediately
+            if (currentScore >= highConfidenceThreshold || exactNameMatch)
             {
                 Console.WriteLine($"Initial character is a match - selecting");
-                SendKeys.SendWait("{ENTER}");
-                await Task.Delay(1000);
-                return true; // High confidence match
-            }
-
-            // Use pattern matching to check for exact character name in the highlighted text
-            if (ContainsExactCharacterName(currentHighlightText, target.Name))
-            {
-                Console.WriteLine($"Found exact character name in highlighted text - selecting");
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
                 return true;
@@ -1263,7 +1843,7 @@ namespace WoWServerManager
                 // Trim any extra whitespace
                 combinedText = combinedText.Trim();
 
-                Console.WriteLine($"Pos {attempt}: Score {positionScore:F2}\nText: {combinedText}");
+                Console.WriteLine($"Pos {attempt}: Score {positionScore:F2}, Exact match: {foundExactName}\nText: {combinedText}");
 
                 // Add to matches list
                 matches.Add((attempt, positionScore, combinedText));
@@ -1291,7 +1871,7 @@ namespace WoWServerManager
                     Console.WriteLine($"High confidence match found at position {attempt} - selecting");
                     SendKeys.SendWait("{ENTER}");
                     await Task.Delay(1000);
-                    return true; // High confidence match
+                    return true;
                 }
 
                 // Move to next character
@@ -1321,14 +1901,14 @@ namespace WoWServerManager
 
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
-                return true; // Medium confidence match
+                return true;
             }
 
             // Final fallback - try with just the names
             var nameOnlyMatch = matches.OrderByDescending(m =>
                 CalculateNameOnlyMatchScore(m.text, target.Name)).FirstOrDefault();
 
-            if (nameOnlyMatch.position >= 0 && nameOnlyMatch.score > 0.5) // Only use if we have a reasonable match
+            if (nameOnlyMatch.score > 0.5) // Only use if we have a reasonable match
             {
                 Console.WriteLine($"Name-only match found at position {nameOnlyMatch.position}");
 
@@ -1345,13 +1925,13 @@ namespace WoWServerManager
 
                 SendKeys.SendWait("{ENTER}");
                 await Task.Delay(1000);
-                return true; // Name-only match
+                return true;
             }
 
             // Ultimate fallback - just press enter on whatever is selected
             Console.WriteLine("No good match found - selecting current character");
             SendKeys.SendWait("{ENTER}");
-            return false; // Could not find a good match
+            return false;
         }
 
         // New helper method to check for exact character name match
@@ -1364,11 +1944,22 @@ namespace WoWServerManager
             string textLower = text.ToLower();
             string nameLower = characterName.ToLower();
 
-            // Method 1: Direct contains check
+            // Method 1: Direct contains check with word boundary check
             if (textLower.Contains(nameLower))
-                return true;
+            {
+                // Try to verify it's a complete name by checking for boundaries
+                // Check for spaces, punctuation, or start/end of text around the name
+                int nameIndex = textLower.IndexOf(nameLower);
+                bool leftBoundary = nameIndex == 0 || char.IsWhiteSpace(textLower[nameIndex - 1]) || char.IsPunctuation(textLower[nameIndex - 1]);
+                bool rightBoundary = nameIndex + nameLower.Length == textLower.Length ||
+                                  char.IsWhiteSpace(textLower[nameIndex + nameLower.Length]) ||
+                                  char.IsPunctuation(textLower[nameIndex + nameLower.Length]);
 
-            // Method 2: Check for name with word boundaries
+                if (leftBoundary || rightBoundary)
+                    return true;
+            }
+
+            // Method 2: Check for name with word boundaries using regex
             string pattern = $@"\b{Regex.Escape(nameLower)}\b";
             if (Regex.IsMatch(textLower, pattern, RegexOptions.IgnoreCase))
                 return true;
@@ -1463,6 +2054,466 @@ namespace WoWServerManager
                 string s when s.Contains("dragonflight") => "/Resources/Icons/dragonflight_icon.png",
                 _ => "/Resources/Icons/default_icon.png"
             };
+        }
+
+        private async void TestCharacterSelection()
+        {
+            if (SelectedAccount == null)
+            {
+                MessageBox.Show("Please select an account with characters first.", "Selection Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (SelectedAccount.Characters.Count == 0)
+            {
+                MessageBox.Show("The selected account has no characters. Please add characters first.", "No Characters", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                // Create a directory for test files if it doesn't exist
+                string testDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug", "Tests");
+                if (!Directory.Exists(testDir))
+                    Directory.CreateDirectory(testDir);
+
+                // First, check if we have any recent screenshots to use
+                DirectoryInfo ocrDir = new DirectoryInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug"));
+                var recentFiles = ocrDir.GetFiles("ocr_capture_*.png", SearchOption.AllDirectories)
+                                       .OrderByDescending(f => f.LastWriteTime)
+                                       .Take(3)
+                                       .ToArray();
+
+                if (recentFiles.Length > 0)
+                {
+                    var result = MessageBox.Show(
+                        $"Do you want to use existing screenshots for testing?\n\nFound {recentFiles.Length} recent screenshot(s).",
+                        "Use Existing Screenshots?",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // Use the most recent file
+                        TestCharacterDetectionWithFile(recentFiles[0].FullName);
+                        return;
+                    }
+                }
+
+                // If no recent files or user wants a new screenshot
+                MessageBox.Show(
+                    "This will attempt to test character selection using a new screenshot.\n\n" +
+                    "Please make sure your WoW client is open with the character selection screen visible.",
+                    "Test Character Selection",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                // Take a screenshot of the character list area
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string screenshotPath = Path.Combine(testDir, $"test_selection_{timestamp}.png");
+
+                // Capture the character list area
+                Rectangle screenBounds = Screen.PrimaryScreen.Bounds;
+
+                // Use exact coordinates from the screenshot - already verified as correct
+                int captureX = 2010;
+                int captureY = 62;
+                int captureWidth = 380;
+                int captureHeight = 1031;
+
+                // Ensure the capture area stays within screen bounds
+                if (captureX + captureWidth > screenBounds.Width)
+                {
+                    captureWidth = screenBounds.Width - captureX - 5;
+                }
+
+                if (captureY + captureHeight > screenBounds.Height)
+                {
+                    captureHeight = screenBounds.Height - captureY - 5;
+                }
+
+                Rectangle captureBounds = new Rectangle(captureX, captureY, captureWidth, captureHeight);
+
+                // Capture the screen area
+                using (Bitmap bitmap = new Bitmap(captureBounds.Width, captureBounds.Height))
+                {
+                    using (Graphics g = Graphics.FromImage(bitmap))
+                    {
+                        g.CopyFromScreen(
+                            new Point(captureBounds.Left, captureBounds.Top),
+                            Point.Empty,
+                            captureBounds.Size);
+                    }
+
+                    bitmap.Save(screenshotPath, System.Drawing.Imaging.ImageFormat.Png);
+                }
+
+                // Test detection with the screenshot
+                TestCharacterDetectionWithFile(screenshotPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during character selection test: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void TestCharacterDetectionWithFile(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                MessageBox.Show($"Screenshot file not found: {filePath}", "File Not Found", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Start with sample simulated OCR text
+            string ocrText = CaptureScreenTextFromImage(filePath);
+
+            // Create result window to show matches
+            var resultsWindow = new Window
+            {
+                Title = "Character Selection Test Results",
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+
+            var mainPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(20) };
+
+            // Header
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "CHARACTER SELECTION TEST RESULTS",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(0, 0, 0, 20)
+            });
+
+            // OCR Text section
+            var ocrPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+            ocrPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "DETECTED TEXT FROM SCREENSHOT:",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Colors.White)
+            });
+
+            var ocrTextBox = new System.Windows.Controls.TextBox
+            {
+                Text = ocrText,
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                Height = 150,
+                Margin = new Thickness(0, 5, 0, 0),
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderThickness = new Thickness(1)
+            };
+            ocrPanel.Children.Add(ocrTextBox);
+            mainPanel.Children.Add(ocrPanel);
+
+            // Matches section
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "CHARACTER MATCHING RESULTS:",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            var grid = new System.Windows.Controls.Grid();
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Headers
+            var characterHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Character",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(5)
+            };
+            System.Windows.Controls.Grid.SetColumn(characterHeader, 0);
+            grid.Children.Add(characterHeader);
+
+            var detailsHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Details",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(5)
+            };
+            System.Windows.Controls.Grid.SetColumn(detailsHeader, 1);
+            grid.Children.Add(detailsHeader);
+
+            var scoreHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Match Score",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(5)
+            };
+            System.Windows.Controls.Grid.SetColumn(scoreHeader, 2);
+            grid.Children.Add(scoreHeader);
+
+            var matchResultHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Result",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Margin = new Thickness(5)
+            };
+            System.Windows.Controls.Grid.SetColumn(matchResultHeader, 3);
+            grid.Children.Add(matchResultHeader);
+
+            // Add row definitions for the header and each character
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+
+            // Process each character
+            int row = 1;
+            bool anyGoodMatches = false;
+            Character bestMatch = null;
+            double bestScore = 0;
+
+            foreach (var character in SelectedAccount.Characters)
+            {
+                // Add a row for this character
+                grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
+
+                // Calculate match score
+                double score = CalculateCharacterMatchScore(ocrText, character);
+                bool hasExactNameMatch = ContainsExactCharacterName(ocrText, character.Name);
+
+                // Update best match
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMatch = character;
+                }
+
+                // Character name
+                var nameCell = new System.Windows.Controls.TextBlock
+                {
+                    Text = character.Name,
+                    Foreground = new SolidColorBrush(Colors.White),
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(nameCell, row);
+                System.Windows.Controls.Grid.SetColumn(nameCell, 0);
+                grid.Children.Add(nameCell);
+
+                // Character details
+                var detailsCell = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"Lvl {character.Level} {character.Class}\n{character.Realm}",
+                    Foreground = new SolidColorBrush(Colors.White),
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(detailsCell, row);
+                System.Windows.Controls.Grid.SetColumn(detailsCell, 1);
+                grid.Children.Add(detailsCell);
+
+                // Match score
+                var scoreCell = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"{score:P0}{(hasExactNameMatch ? " (Exact Name)" : "")}",
+                    Foreground = new SolidColorBrush(score >= 0.85 ? Colors.LightGreen :
+                               (score >= 0.65 ? Colors.Yellow : Colors.Red)),
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(scoreCell, row);
+                System.Windows.Controls.Grid.SetColumn(scoreCell, 2);
+                grid.Children.Add(scoreCell);
+
+                // Result 
+                string resultText;
+                SolidColorBrush resultColor;
+
+                if (score >= 0.85 || hasExactNameMatch)
+                {
+                    resultText = "STRONG MATCH";
+                    resultColor = new SolidColorBrush(Colors.LightGreen);
+                    anyGoodMatches = true;
+                }
+                else if (score >= 0.65)
+                {
+                    resultText = "POSSIBLE MATCH";
+                    resultColor = new SolidColorBrush(Colors.Yellow);
+                    anyGoodMatches = true;
+                }
+                else
+                {
+                    resultText = "WEAK MATCH";
+                    resultColor = new SolidColorBrush(Colors.Red);
+                }
+
+                var resultCell = new System.Windows.Controls.TextBlock
+                {
+                    Text = resultText,
+                    Foreground = resultColor,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(5)
+                };
+                System.Windows.Controls.Grid.SetRow(resultCell, row);
+                System.Windows.Controls.Grid.SetColumn(resultCell, 3);
+                grid.Children.Add(resultCell);
+
+                row++;
+            }
+
+            // Add the grid to the main panel
+            var border = new System.Windows.Controls.Border
+            {
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            border.Child = grid;
+            mainPanel.Children.Add(border);
+
+            // Summary and recommendations
+            var summaryPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+
+            summaryPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "SUMMARY:",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            string summaryText;
+
+            if (anyGoodMatches)
+            {
+                summaryText = $"Character selection should work with your current setup. The best match is " +
+                         $"'{bestMatch.Name}' with a {bestScore:P0} confidence score.";
+            }
+            else
+            {
+                summaryText = "Character detection is not reliable with your current setup. Please follow the recommendations below.";
+            }
+
+            summaryPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = summaryText,
+                Foreground = new SolidColorBrush(Colors.White),
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            mainPanel.Children.Add(summaryPanel);
+
+            // Recommendations
+            mainPanel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "RECOMMENDATIONS:",
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            var recommendationsList = new System.Windows.Controls.ListBox
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderThickness = new Thickness(1),
+                Foreground = new SolidColorBrush(Colors.White)
+            };
+
+            recommendationsList.Items.Add("Make sure character names match exactly what appears in the game.");
+            recommendationsList.Items.Add("Add the realm names exactly as they appear in the character selection screen.");
+            recommendationsList.Items.Add("For best results, position your characters in order from top to bottom in the character list.");
+            recommendationsList.Items.Add("Try using the 'Calibrate OCR' tool to optimize detection for your screen.");
+            recommendationsList.Items.Add("Check that your screen resolution matches the capture area coordinates.");
+            recommendationsList.Items.Add("If using an ultrawide monitor, you may need to use 'Overlay Debug' to adjust the capture area.");
+
+            mainPanel.Children.Add(recommendationsList);
+
+            // Add a scroll viewer for the content
+            var scrollViewer = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto
+            };
+            scrollViewer.Content = mainPanel;
+
+            // Set the window content and show it
+            resultsWindow.Content = scrollViewer;
+            resultsWindow.ShowDialog();
+        }
+
+
+        private string CaptureScreenTextFromImage(string imagePath)
+        {
+            try
+            {
+                // Load the image with EmguCV
+                using (Image<Bgr, byte> image = new Image<Bgr, byte>(imagePath))
+                {
+                    // Try to detect the highlighted row (gold/yellow selection)
+                    Rectangle? highlightedArea = DetectHighlightedRow(image);
+
+                    Image<Bgr, byte> regionOfInterest;
+
+                    if (highlightedArea.HasValue)
+                    {
+                        // If we found a highlighted area, crop to that area
+                        Rectangle roi = highlightedArea.Value;
+                        using (Image<Bgr, byte> highlightedImage = image.Copy(roi))
+                        {
+                            regionOfInterest = highlightedImage.Clone();
+                        }
+                    }
+                    else
+                    {
+                        // If no highlight detected, use the entire image
+                        regionOfInterest = image.Clone();
+                    }
+
+                    // Process image with EmguCV for better OCR results
+                    var processedImage = PreprocessImageWithEmguCV(regionOfInterest);
+
+                    // Debug: Save the processed image
+                    string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    string processedPath = Path.Combine(debugDir, $"test_processed_{timestamp}.png");
+                    processedImage.Save(processedPath);
+
+                    // Perform OCR with Tesseract
+                    string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+                    string result = "";
+
+                    using (var engine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default))
+                    {
+                        // Configure Tesseract for game text - expand whitelist for better recognition
+                        engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.' ");
+                        engine.SetVariable("tessedit_pageseg_mode", "6"); // Assume a single uniform block of text
+                        engine.SetVariable("tessedit_ocr_engine_mode", "2"); // LSTM only
+
+                        // Add specific game text optimization
+                        engine.SetVariable("language_model_penalty_non_dict_word", "0.1"); // Lower penalty for non-dictionary words (character names)
+                        engine.SetVariable("language_model_penalty_case", "0.1"); // Lower penalty for case issues
+
+                        // Convert EmguCV image to a format Tesseract can use
+                        using (var img = ConvertEmguCvImageToPix(processedImage))
+                        {
+                            using (var page = engine.Process(img, PageSegMode.SingleBlock))
+                            {
+                                result = page.GetText().Trim();
+                            }
+                        }
+                    }
+
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error processing image: {ex.Message}";
+            }
         }
 
         private string CaptureScreenText()
@@ -1756,60 +2807,116 @@ namespace WoWServerManager
             string lowerText = screenText.ToLower();
             string targetName = character.Name.ToLower();
             string targetClass = character.Class?.ToLower() ?? "";
+            int targetLevel = character.Level;
 
-            // Name matching (more strict) - use improved fuzzy matching
-            if (lowerText.Contains(targetName))
+            // Exact name match - strongest signal
+            if (ContainsExactCharacterName(lowerText, targetName))
             {
-                score += 0.7; // Strong match for exact name
+                score += 0.7; // Heavy weight for exact name match
             }
             else
             {
-                // Try fuzzy matching for name
-                double nameScore = CalculateFuzzyMatchScore(lowerText, targetName);
-                score += nameScore * 0.5; // Weight partial matches
-            }
+                // Partial name matching with word segments
+                string[] nameParts = targetName.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                double nameMatchCount = 0;
 
-            // Class matching (more strict)
-            if (!string.IsNullOrWhiteSpace(character.Class))
-            {
-                if (lowerText.Contains(targetClass))
+                foreach (var part in nameParts)
                 {
-                    score += 0.2;
+                    // Only consider parts that are at least 3 characters long
+                    if (part.Length >= 3 && lowerText.Contains(part))
+                    {
+                        nameMatchCount++;
+                    }
+                }
+
+                if (nameParts.Length > 0)
+                {
+                    double partialNameScore = nameMatchCount / nameParts.Length * 0.5; // Max 0.5 for partial matches
+                    score += partialNameScore;
                 }
                 else
                 {
-                    // Try matching class abbreviations (e.g., "Dru" for "Druid")
-                    string classAbbrev = character.Class.Length > 3
-                        ? character.Class.Substring(0, 3).ToLower()
-                        : character.Class.ToLower();
+                    // Fallback to fuzzy matching if no parts
+                    double fuzzyScore = CalculateFuzzyMatchScore(lowerText, targetName);
+                    score += fuzzyScore * 0.4; // Lower weight for fuzzy matches
+                }
+            }
 
-                    if (lowerText.Contains(classAbbrev))
+            // Class matching - medium signal
+            if (!string.IsNullOrWhiteSpace(targetClass))
+            {
+                if (lowerText.Contains(targetClass))
+                {
+                    score += 0.2; // Direct class match
+                }
+                else
+                {
+                    // Check for common class abbreviations and variations
+                    switch (targetClass)
                     {
-                        score += 0.1;
+                        case "death knight":
+                            if (lowerText.Contains("dk") || lowerText.Contains("death") || lowerText.Contains("knight"))
+                                score += 0.1;
+                            break;
+                        case "demon hunter":
+                            if (lowerText.Contains("dh") || lowerText.Contains("demon") || lowerText.Contains("hunter"))
+                                score += 0.1;
+                            break;
+                        default:
+                            // For other classes, check if the first 3+ chars are present
+                            if (targetClass.Length > 3 && lowerText.Contains(targetClass.Substring(0, 3)))
+                                score += 0.1;
+                            break;
                     }
                 }
             }
 
-            // Level matching (with various formats)
-            string[] levelPatterns = {
-                $"level {character.Level}",
-                $"lvl {character.Level}",
-                $"lvl{character.Level}",
-                $"level{character.Level}",
-                $"lv {character.Level}",
-                $"lv{character.Level}",
-                $"{character.Level}"
-            };
-
-            foreach (var pattern in levelPatterns)
+            // Level matching - good signal
+            if (targetLevel > 0)
             {
-                if (lowerText.Contains(pattern))
+                // Check various level formats
+                string[] levelPatterns = {
+            $"level {targetLevel}",
+            $"lvl {targetLevel}",
+            $"lvl{targetLevel}",
+            $"level{targetLevel}",
+            $"lv {targetLevel}",
+            $"lv{targetLevel}",
+            $"{targetLevel}" // Just the number, less reliable
+        };
+
+                foreach (var pattern in levelPatterns)
                 {
-                    score += 0.15;
-                    break;
+                    if (lowerText.Contains(pattern))
+                    {
+                        score += 0.15;
+                        break;
+                    }
+                }
+
+                // Add level number check with more context - check if the level appears with a boundary
+                string levelPattern = $@"\b{targetLevel}\b";
+                if (Regex.IsMatch(lowerText, levelPattern))
+                {
+                    // Check if it's around words related to levels
+                    if (lowerText.Contains("level") || lowerText.Contains("lvl") || lowerText.Contains("lv"))
+                    {
+                        score += 0.05; // Small boost for level appearing with level-related words
+                    }
                 }
             }
 
+            // Realm matching (if specified) - weaker signal but still useful
+            if (!string.IsNullOrWhiteSpace(character.Realm))
+            {
+                string targetRealm = character.Realm.ToLower();
+                if (lowerText.Contains(targetRealm))
+                {
+                    score += 0.1;
+                }
+            }
+
+            // Prevent exceeding 1.0
             return Math.Min(score, 1.0);
         }
 
