@@ -1,30 +1,100 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net6.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<EnableWindowsTargeting>true</EnableWindowsTargeting>
+		<WindowsPackageType>None</WindowsPackageType>
+		<ApplicationIcon>Resources\wow-icon.ico</ApplicationIcon>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon>Resources\wow-icon.ico</ApplicationIcon>
-  </PropertyGroup>
+	<ItemGroup>
+		<None Remove="Resources\Icons\bfa_icon.png" />
+		<None Remove="Resources\Icons\cata_icon.png" />
+		<None Remove="Resources\Icons\classic_icon.png" />
+		<None Remove="Resources\Icons\dragonflight_icon.png" />
+		<None Remove="Resources\Icons\legion_icon.png" />
+		<None Remove="Resources\Icons\mop_icon.png" />
+		<None Remove="Resources\Icons\shadowlands_icon.png" />
+		<None Remove="Resources\Icons\tbc_icon.png" />
+		<None Remove="Resources\Icons\wod_icon.png" />
+		<None Remove="Resources\Icons\wotlk_icon.png" />
+	</ItemGroup>
+	<ItemGroup>
+		<COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
+			<WrapperTool>tlbimp</WrapperTool>
+			<VersionMinor>4</VersionMinor>
+			<VersionMajor>2</VersionMajor>
+			<Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
+		</COMReference>
+	</ItemGroup>
+	<ItemGroup>
+		<Resource Include="Resources\Icons\bfa_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\cata_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\classic_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\dragonflight_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\legion_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\mop_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\shadowlands_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\tbc_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\wod_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Icons\wotlk_icon.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\wow-background.jpg" />
+		<Resource Include="Resources\wow-icon.ico" />
+		<Resource Include="Resources\wow-icon.png" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Emgu.CV" Version="4.10.0.5680" />
+		<PackageReference Include="Emgu.CV.Bitmap" Version="4.10.0.5680" />
+		<PackageReference Include="Emgu.CV.runtime.windows" Version="4.10.0.5680" />
+		<PackageReference Include="IronPython" Version="3.4.2" />
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Windows.Compatibility" Version="7.0.0" />
+		<PackageReference Include="Tesseract" Version="5.2.0" />
+		<PackageReference Include="Tesseract.Drawing" Version="5.2.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
-      <WrapperTool>tlbimp</WrapperTool>
-      <VersionMinor>4</VersionMinor>
-      <VersionMajor>2</VersionMajor>
-      <Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
-    </COMReference>
-  </ItemGroup>
+	<!-- Create runtimeconfig.json to properly handle System.Drawing settings -->
+	<ItemGroup>
+		<None Include="$(OutDir)\runtimeconfig.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Resources\wow-background.jpg" />
-    <Resource Include="Resources\wow-icon.ico" />
-    <Resource Include="Resources\wow-icon.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Resources\" />
-  </ItemGroup>
-
+	<Target Name="CreateRuntimeConfigJson" BeforeTargets="Build">
+		<PropertyGroup>
+			<RuntimeConfigContent>
+				{
+				"runtimeOptions": {
+				"configProperties": {
+				"System.Drawing.EnableUnixSupport": false
+				}
+				}
+				}
+			</RuntimeConfigContent>
+		</PropertyGroup>
+		<WriteLinesToFile File="$(OutDir)\runtimeconfig.json" Lines="$(RuntimeConfigContent)" Overwrite="true" />
+	</Target>
 </Project>
