@@ -23,6 +23,12 @@ using Tesseract;
 using Point = System.Drawing.Point; // Resolves Point ambiguity
 using ImageFormat = System.Drawing.Imaging.ImageFormat; // Resolves ImageFormat ambiguity
 
+using DrawingImage = System.Drawing.Image;
+using WpfImage = System.Windows.Controls.Image;
+using MediaColor = System.Windows.Media.Color;
+using DrawingColor = System.Drawing.Color;
+using MediaColorConverter = System.Windows.Media.ColorConverter;
+using DrawingColorConverter = System.Drawing.ColorConverter;
 // EmguCV namespaces
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -1227,7 +1233,7 @@ namespace WoWServerManager
                             captureBounds.Size);
                     }
 
-                    bitmap.Save(originalPath, System.Drawing.Imaging.ImageFormat.Png);
+                    bitmap.Save(originalPath, ImageFormat.Png);
                 }
 
                 // Process the image with EmguCV
@@ -1252,8 +1258,8 @@ namespace WoWServerManager
                             using (Image<Bgr, byte> croppedImage = image.Copy(roi))
                             {
                                 // Process the cropped image
-                                var processedImage = PreprocessImageWithEmguCV(croppedImage);
-                                processedImage.Save(processedPath);
+                                var ocrProcessedImage = PreprocessImageWithEmguCV(croppedImage);
+                                ocrProcessedImage.Save(processedPath);
 
                                 // Perform OCR
                                 string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
@@ -1265,7 +1271,7 @@ namespace WoWServerManager
                                     engine.SetVariable("language_model_penalty_non_dict_word", "0.1");
                                     engine.SetVariable("language_model_penalty_case", "0.1");
 
-                                    using (var img = ConvertEmguCvImageToPix(processedImage))
+                                    using (var img = ConvertEmguCvImageToPix(ocrProcessedImage))
                                     {
                                         using (var page = engine.Process(img, PageSegMode.SingleBlock))
                                         {
@@ -1280,8 +1286,8 @@ namespace WoWServerManager
                     else
                     {
                         // No highlight found, process the entire image
-                        var processedImage = PreprocessImageWithEmguCV(image);
-                        processedImage.Save(processedPath);
+                        var ocrProcessedImage = PreprocessImageWithEmguCV(image);
+                        ocrProcessedImage.Save(processedPath);
 
                         // Perform OCR on the whole image
                         string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
@@ -1293,7 +1299,7 @@ namespace WoWServerManager
                             engine.SetVariable("language_model_penalty_non_dict_word", "0.1");
                             engine.SetVariable("language_model_penalty_case", "0.1");
 
-                            using (var img = ConvertEmguCvImageToPix(processedImage))
+                            using (var img = ConvertEmguCvImageToPix(ocrProcessedImage))
                             {
                                 using (var page = engine.Process(img, PageSegMode.SingleBlock))
                                 {
@@ -1328,7 +1334,7 @@ namespace WoWServerManager
                     Text = "OCR VISUALIZATION RESULTS",
                     FontSize = 20,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                     Margin = new Thickness(0, 0, 0, 15)
                 };
@@ -1445,7 +1451,7 @@ namespace WoWServerManager
                 {
                     Text = "OCR RESULTS",
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                     FontSize = 16,
                     Margin = new Thickness(0, 0, 0, 10)
                 });
@@ -1459,9 +1465,9 @@ namespace WoWServerManager
                     TextWrapping = TextWrapping.Wrap,
                     Height = 300,
                     VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    Background = new SolidColorBrush(MediaColor.FromRgb(30, 30, 30)),
                     Foreground = new SolidColorBrush(Colors.White),
-                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                    BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                     BorderThickness = new Thickness(1),
                     Margin = new Thickness(0, 0, 0, 15)
                 };
@@ -1474,7 +1480,7 @@ namespace WoWServerManager
                     {
                         Text = "CHARACTER MATCHING",
                         FontWeight = FontWeights.Bold,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                        Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                         FontSize = 16,
                         Margin = new Thickness(0, 0, 0, 10)
                     });
@@ -1540,11 +1546,18 @@ namespace WoWServerManager
                         matchGrid.Children.Add(nameText);
 
                         // Score
+                        SolidColorBrush scoreBrush;
+                        if (score >= 0.85)
+                            scoreBrush = new SolidColorBrush(Colors.LightGreen);
+                        else if (score >= 0.65)
+                            scoreBrush = new SolidColorBrush(Colors.Yellow);
+                        else
+                            scoreBrush = new SolidColorBrush(Colors.Red);
+
                         var scoreText = new System.Windows.Controls.TextBlock
                         {
                             Text = $"{score:P0}{(hasExactMatch ? " (Exact Name)" : "")}",
-                            Foreground = new SolidColorBrush(score >= 0.85 ? Colors.LightGreen :
-                                       (score >= 0.65 ? Colors.Yellow : Colors.Red)),
+                            Foreground = scoreBrush,
                             FontWeight = FontWeights.Bold,
                             Margin = new Thickness(5)
                         };
@@ -1558,7 +1571,7 @@ namespace WoWServerManager
                     // Add to a border
                     var matchBorder = new System.Windows.Controls.Border
                     {
-                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                        BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                         BorderThickness = new Thickness(1),
                         Margin = new Thickness(0, 0, 0, 15)
                     };
@@ -1568,11 +1581,18 @@ namespace WoWServerManager
                     // Best match summary
                     if (bestMatch != null)
                     {
+                        SolidColorBrush bestMatchBrush;
+                        if (bestScore >= 0.85)
+                            bestMatchBrush = new SolidColorBrush(Colors.LightGreen);
+                        else if (bestScore >= 0.65)
+                            bestMatchBrush = new SolidColorBrush(Colors.Yellow);
+                        else
+                            bestMatchBrush = new SolidColorBrush(Colors.Red);
+
                         var bestMatchText = new System.Windows.Controls.TextBlock
                         {
                             Text = $"Best Match: {bestMatch.Name} ({bestScore:P0})",
-                            Foreground = new SolidColorBrush(bestScore >= 0.85 ? Colors.LightGreen :
-                                        (bestScore >= 0.65 ? Colors.Yellow : Colors.Red)),
+                            Foreground = bestMatchBrush,
                             FontWeight = FontWeights.Bold,
                             Margin = new Thickness(0, 0, 0, 15)
                         };
@@ -2474,13 +2494,13 @@ namespace WoWServerManager
                     }
 
                     // Process image with EmguCV for better OCR results
-                    var processedImage = PreprocessImageWithEmguCV(regionOfInterest);
+                    var ocrProcessedImage = PreprocessImageWithEmguCV(regionOfInterest);
 
                     // Debug: Save the processed image
                     string debugDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OCR_Debug");
                     string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                     string processedPath = Path.Combine(debugDir, $"test_processed_{timestamp}.png");
-                    processedImage.Save(processedPath);
+                    ocrProcessedImage.Save(processedPath);
 
                     // Perform OCR with Tesseract
                     string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
@@ -2498,7 +2518,7 @@ namespace WoWServerManager
                         engine.SetVariable("language_model_penalty_case", "0.1"); // Lower penalty for case issues
 
                         // Convert EmguCV image to a format Tesseract can use
-                        using (var img = ConvertEmguCvImageToPix(processedImage))
+                        using (var img = ConvertEmguCvImageToPix(ocrProcessedImage))
                         {
                             using (var page = engine.Process(img, PageSegMode.SingleBlock))
                             {
