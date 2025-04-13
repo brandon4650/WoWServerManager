@@ -159,11 +159,11 @@ namespace WoWServerManager
 
             // Disable all character-related functionality with informative messages
             string featureDisabledMsg = "Character selection features are disabled in this version.";
-            CalibrateOcrCommand = new RelayCommand(_ => MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
-            TestCharacterSelectionCommand = new RelayCommand(_ => MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
-            GetCharacterRecommendationsCommand = new RelayCommand(_ => MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
-            VisualizeOcrResultsCommand = new RelayCommand(_ => MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
-            DebugOcrOverlayCommand = new RelayCommand(_ => MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
+            CalibrateOcrCommand = new RelayCommand(_ => System.Windows.MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
+            TestCharacterSelectionCommand = new RelayCommand(_ => System.Windows.MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
+            GetCharacterRecommendationsCommand = new RelayCommand(_ => System.Windows.MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
+            VisualizeOcrResultsCommand = new RelayCommand(_ => System.Windows.MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
+            DebugOcrOverlayCommand = new RelayCommand(_ => System.Windows.MessageBox.Show(featureDisabledMsg, "Feature Disabled", MessageBoxButton.OK, MessageBoxImage.Information));
         }
 
         private void LoadConfig()
@@ -207,7 +207,7 @@ namespace WoWServerManager
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Error loading configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Servers = new ObservableCollection<Server>();
             }
         }
@@ -230,11 +230,11 @@ namespace WoWServerManager
 
                 var json = JsonSerializer.Serialize(Servers, options);
                 File.WriteAllText(_configFilePath, json);
-                MessageBox.Show("Configuration saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show("Configuration saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Error saving configuration: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -270,7 +270,7 @@ namespace WoWServerManager
         {
             if (SelectedServer == null) return;
 
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 $"Are you sure you want to remove the server '{SelectedServer.Name}'?",
                 "Confirm Removal",
                 MessageBoxButton.YesNo,
@@ -283,6 +283,7 @@ namespace WoWServerManager
                 SaveConfig();
             }
         }
+
 
         private void AddExpansion()
         {
@@ -324,7 +325,7 @@ namespace WoWServerManager
         {
             if (SelectedExpansion == null) return;
 
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 $"Are you sure you want to remove the expansion '{SelectedExpansion.Name}'?",
                 "Confirm Removal",
                 MessageBoxButton.YesNo,
@@ -374,7 +375,7 @@ namespace WoWServerManager
         {
             if (SelectedAccount == null) return;
 
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 $"Are you sure you want to remove the account '{SelectedAccount.Username}'?",
                 "Confirm Removal",
                 MessageBoxButton.YesNo,
@@ -574,7 +575,7 @@ namespace WoWServerManager
             SaveConfig();
 
             // Step 2: Prompt to add expansion
-            var addExpansionResult = MessageBox.Show(
+            var addExpansionResult = System.Windows.MessageBox.Show(
                 $"Would you like to add an expansion for server '{serverDialog.Server.Name}'?",
                 "Add Expansion",
                 MessageBoxButton.YesNo,
@@ -623,7 +624,7 @@ namespace WoWServerManager
                 SaveConfig();
 
                 // Ask if user wants to add another account
-                var result = MessageBox.Show(
+                var result = System.Windows.MessageBox.Show(
                     "Would you like to add another account for this expansion?",
                     "Add Another Account",
                     MessageBoxButton.YesNo,
@@ -633,7 +634,7 @@ namespace WoWServerManager
             }
 
             // After adding accounts, ask if they want to add another expansion
-            var addAnotherExpansion = MessageBox.Show(
+            var addAnotherExpansion = System.Windows.MessageBox.Show(
                 "Would you like to add another expansion for this server?",
                 "Add Another Expansion",
                 MessageBoxButton.YesNo,
@@ -649,7 +650,7 @@ namespace WoWServerManager
         {
             if (SelectedExpansion == null || SelectedAccount == null)
             {
-                MessageBox.Show("Please select an expansion and account first.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show("Please select an expansion and account first.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             try
@@ -657,14 +658,14 @@ namespace WoWServerManager
                 // Check if the launcher exists
                 if (!File.Exists(SelectedExpansion.LauncherPath))
                 {
-                    MessageBox.Show($"The launcher at '{SelectedExpansion.LauncherPath}' does not exist.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show($"The launcher at '{SelectedExpansion.LauncherPath}' does not exist.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 // Launch the game
                 var process = Process.Start(SelectedExpansion.LauncherPath);
                 if (process == null)
                 {
-                    MessageBox.Show("Failed to start the game launcher.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show("Failed to start the game launcher.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 // Wait for the game client to fully load
@@ -678,11 +679,11 @@ namespace WoWServerManager
                 string result = $"Game launched successfully with account: {SelectedAccount.Username}\n\n" +
                                "You will need to manually select your character.";
 
-                MessageBox.Show(result, "Launch Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(result, "Launch Successful", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error launching game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Error launching game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -962,7 +963,7 @@ namespace WoWServerManager
                 {
                     if (string.IsNullOrWhiteSpace(Server.Name))
                     {
-                        MessageBox.Show("Server name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        System.Windows.MessageBox.Show("Server name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
 
@@ -1149,13 +1150,13 @@ namespace WoWServerManager
                 {
                     if (string.IsNullOrWhiteSpace(Expansion.Name))
                     {
-                        MessageBox.Show("Expansion name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        System.Windows.MessageBox.Show("Expansion name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
 
                     if (string.IsNullOrWhiteSpace(Expansion.LauncherPath))
                     {
-                        MessageBox.Show("Launcher path is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        System.Windows.MessageBox.Show("Launcher path is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
 
@@ -1258,12 +1259,12 @@ namespace WoWServerManager
                 {
                     if (string.IsNullOrWhiteSpace(Account.Username))
                     {
-                        MessageBox.Show("Username is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        System.Windows.MessageBox.Show("Username is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
                     if (string.IsNullOrWhiteSpace(Account.Password))
                     {
-                        MessageBox.Show("Password is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        System.Windows.MessageBox.Show("Password is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
                     DialogResult = true;
@@ -1282,3 +1283,5 @@ namespace WoWServerManager
                 Content = grid;
             }
         }
+    }
+}
