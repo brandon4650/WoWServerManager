@@ -1646,7 +1646,7 @@ namespace WoWServerManager
                 Text = "IMPROVING CHARACTER DETECTION",
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(0, 0, 0, 20)
             });
 
@@ -1656,7 +1656,7 @@ namespace WoWServerManager
                 Text = "Character detection using OCR can be challenging due to the visual complexity of World of Warcraft's interface. " +
                        "Here are detailed recommendations to improve detection accuracy:",
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Colors.White),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(0, 0, 0, 15)
             });
 
@@ -1699,8 +1699,8 @@ namespace WoWServerManager
             // Add a note about the current algorithm
             var algorithmNote = new System.Windows.Controls.Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Background = new SolidColorBrush(MediaColor.FromRgb(40, 40, 40)),
+                BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10),
                 Margin = new Thickness(0, 15, 0, 15)
@@ -1755,7 +1755,7 @@ namespace WoWServerManager
             // Section content
             var contentBorder = new System.Windows.Controls.Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                Background = new SolidColorBrush(MediaColor.FromRgb(30, 30, 30)),
                 BorderBrush = new SolidColorBrush(Colors.Gray),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10),
@@ -2205,7 +2205,7 @@ namespace WoWServerManager
                 Text = "CHARACTER SELECTION TEST RESULTS",
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(0, 0, 0, 20)
             });
 
@@ -2225,9 +2225,9 @@ namespace WoWServerManager
                 TextWrapping = TextWrapping.Wrap,
                 Height = 150,
                 Margin = new Thickness(0, 5, 0, 0),
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                Background = new SolidColorBrush(MediaColor.FromRgb(30, 30, 30)),
                 Foreground = new SolidColorBrush(Colors.White),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 BorderThickness = new Thickness(1)
             };
             ocrPanel.Children.Add(ocrTextBox);
@@ -2253,7 +2253,7 @@ namespace WoWServerManager
             {
                 Text = "Character",
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(5)
             };
             System.Windows.Controls.Grid.SetColumn(characterHeader, 0);
@@ -2263,7 +2263,7 @@ namespace WoWServerManager
             {
                 Text = "Details",
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(5)
             };
             System.Windows.Controls.Grid.SetColumn(detailsHeader, 1);
@@ -2273,7 +2273,7 @@ namespace WoWServerManager
             {
                 Text = "Match Score",
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(5)
             };
             System.Windows.Controls.Grid.SetColumn(scoreHeader, 2);
@@ -2283,7 +2283,7 @@ namespace WoWServerManager
             {
                 Text = "Result",
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Foreground = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 Margin = new Thickness(5)
             };
             System.Windows.Controls.Grid.SetColumn(matchResultHeader, 3);
@@ -2336,12 +2336,12 @@ namespace WoWServerManager
                 System.Windows.Controls.Grid.SetColumn(detailsCell, 1);
                 grid.Children.Add(detailsCell);
 
-                // Match score
+                // Match score - using appropriate color for the score
                 var scoreCell = new System.Windows.Controls.TextBlock
                 {
                     Text = $"{score:P0}{(hasExactNameMatch ? " (Exact Name)" : "")}",
-                    Foreground = new SolidColorBrush(score >= 0.85 ? Colors.LightGreen :
-                               (score >= 0.65 ? Colors.Yellow : Colors.Red)),
+                    Foreground = score >= 0.85 ? new SolidColorBrush(Colors.LightGreen) :
+                              (score >= 0.65 ? new SolidColorBrush(Colors.Yellow) : new SolidColorBrush(Colors.Red)),
                     FontWeight = FontWeights.Bold,
                     Margin = new Thickness(5)
                 };
@@ -2349,7 +2349,7 @@ namespace WoWServerManager
                 System.Windows.Controls.Grid.SetColumn(scoreCell, 2);
                 grid.Children.Add(scoreCell);
 
-                // Result 
+                // Result text and color
                 string resultText;
                 SolidColorBrush resultColor;
 
@@ -2388,7 +2388,7 @@ namespace WoWServerManager
             // Add the grid to the main panel
             var border = new System.Windows.Controls.Border
             {
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 0, 20)
             };
@@ -2438,8 +2438,8 @@ namespace WoWServerManager
 
             var recommendationsList = new System.Windows.Controls.ListBox
             {
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFCC00")),
+                Background = new SolidColorBrush(MediaColor.FromRgb(30, 30, 30)),
+                BorderBrush = new SolidColorBrush((MediaColor)MediaColorConverter.ConvertFromString("#FFCC00")),
                 BorderThickness = new Thickness(1),
                 Foreground = new SolidColorBrush(Colors.White)
             };
