@@ -1,4 +1,4 @@
-<Window x:Class="WoWServerManager.MainWindow"
+﻿<Window x:Class="WoWServerManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -367,7 +367,7 @@
                     <TextBlock Text="SETTINGS" Margin="20,30,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                     <StackPanel>
                         <!-- Preferences button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2">
+                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2" Command="{Binding OpenSettingsCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
                                     <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>

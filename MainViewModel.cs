@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -16,6 +16,7 @@ using System.Text.Json.Serialization;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
 using System.Windows.Controls;
+
 
 namespace WoWServerManager
 {
@@ -558,9 +559,16 @@ namespace WoWServerManager
 
         private void OpenSettings()
         {
-            var settingsWindow = new SettingsWindow();
-            settingsWindow.Owner = Application.Current.MainWindow;
-            settingsWindow.ShowDialog();
+            try
+            {
+                var settingsWindow = new SettingsWindow();
+                settingsWindow.Owner = System.Windows.Application.Current.MainWindow;
+                settingsWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error opening settings: {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // Add the PropertyChanged event and OnPropertyChanged method
