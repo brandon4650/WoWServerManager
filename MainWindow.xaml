@@ -1,4 +1,4 @@
-﻿<Window x:Class="WoWServerManager.MainWindow"
+<Window x:Class="WoWServerManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -8,7 +8,7 @@
         Title="World of Warcraft Server Manager" 
         Height="800" Width="1300"
         WindowStartupLocation="CenterScreen"
-        Background="#0c0c17">
+        Background="{StaticResource BackgroundBrush}">
 
     <Window.Resources>
         <!-- Design 8 Theme Colors -->
@@ -22,7 +22,7 @@
         <Color x:Key="ColorTextSecondary">#b8b9cf</Color>
         <Color x:Key="ColorTextTertiary">#7f8296</Color>
 
-        <!-- Brushes -->
+        <!-- Brushes - Using static for initial loading -->
         <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource ColorBackground}"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource ColorSurface}"/>
         <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource ColorSurfaceRaised}"/>
@@ -56,7 +56,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="#323559"/>
-                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter Property="Background" Value="#3b3e5e"/>
@@ -74,8 +74,8 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
-                    <Setter Property="Foreground" Value="{StaticResource BackgroundBrush}"/>
+                    <Setter Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource BackgroundBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -100,8 +100,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" TargetName="NavBorder"/>
-                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" TargetName="NavBorder"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -132,7 +132,7 @@
         <Style x:Key="ModernListBoxStyle" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
@@ -155,7 +155,7 @@
         <Style x:Key="ModernListBoxItemStyle" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
-            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="Template">
@@ -173,11 +173,11 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="#323559" TargetName="ItemBorder"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" TargetName="ItemBorder"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" TargetName="ItemBorder"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{StaticResource PrimaryLightBrush}" TargetName="ItemBorder"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" TargetName="ItemBorder"/>
+                                <Setter Property="Background" Value="{DynamicResource PrimaryLightBrush}" TargetName="ItemBorder"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" TargetName="ItemBorder"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -187,8 +187,8 @@
 
         <!-- Card Style -->
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Effect">
@@ -200,8 +200,8 @@
 
         <!-- Card Header Style -->
         <Style x:Key="CardHeaderStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="Padding" Value="16,12"/>
         </Style>
@@ -213,8 +213,8 @@
 
         <!-- Card Footer Style -->
         <Style x:Key="CardFooterStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,0"/>
             <Setter Property="Padding" Value="16,12"/>
         </Style>
@@ -222,7 +222,7 @@
         <!-- Data Templates -->
         <DataTemplate x:Key="ServerItemTemplate">
             <Grid>
-                <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
             </Grid>
         </DataTemplate>
 
@@ -237,9 +237,9 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 <Image Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Source="{Binding IconPath}" Width="32" Height="32"/>
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Server.Name, StringFormat='Server: {0}'}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0"/>
             </Grid>
         </DataTemplate>
 
@@ -250,8 +250,8 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="{Binding Username}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Grid.Row="1" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0">
+                <TextBlock Grid.Row="0" Text="{Binding Username}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Grid.Row="1" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12" Margin="0,4,0,0">
                     <Run Text="Server:"/>
                     <Run Text="{Binding Expansion.Server.Name}"/>
                     <Run Text=" | Expansion:"/>
@@ -267,15 +267,15 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Grid.Row="0" Text="{Binding Name}" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                    <TextBlock Text="{Binding Class}" Foreground="{StaticResource PrimaryBrush}" FontSize="12"/>
-                    <TextBlock Text=" | " Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-                    <TextBlock Text="Level:" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
-                    <TextBlock Text="{Binding Level}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-                    <TextBlock Text=" | " Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-                    <TextBlock Text="Realm:" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
-                    <TextBlock Text="{Binding Realm}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text="{Binding Class}" Foreground="{DynamicResource PrimaryBrush}" FontSize="12"/>
+                    <TextBlock Text=" | " Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text="Level:" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
+                    <TextBlock Text="{Binding Level}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text=" | " Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"/>
+                    <TextBlock Text="Realm:" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12" Margin="0,0,3,0"/>
+                    <TextBlock Text="{Binding Realm}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"/>
                 </StackPanel>
             </Grid>
         </DataTemplate>
@@ -299,7 +299,7 @@
                 <StackPanel DockPanel.Dock="Top" Margin="20,20,20,30">
                     <StackPanel Orientation="Horizontal">
                         <Image Source="/Resources/wow-icon.ico" Width="32" Height="32" Margin="0,0,12,0"/>
-                        <TextBlock Text="WoW Manager" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="WoW Manager" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -310,77 +310,77 @@
                     <TextBlock Text="MANAGEMENT" Margin="20,0,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                     <StackPanel>
                         <!-- Dashboard button (already active by default) -->
-                        <Button Style="{StaticResource NavButtonActiveStyle}" Margin="0,2">
+                        <Button Style="{DynamicResource NavButtonActiveStyle}" Margin="0,2">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource PrimaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource PrimaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Dashboard" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Server navigation button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2"
                                 Click="OnServerButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Servers" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Expansion navigation button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2"
                                 Click="OnExpansionButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Expansions" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Accounts navigation button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2"
                                 Click="OnAccountButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Accounts" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Characters navigation button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2"
                                 Click="OnCharacterButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Characters" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
 
-                    <TextBlock Text="SETTINGS" Margin="20,30,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
+                    <TextBlock Text="SETTINGS" Margin="20,30,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}"/>
                     <StackPanel>
                         <!-- Preferences button -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2" Command="{Binding OpenSettingsCommand}">
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2" Command="{Binding OpenSettingsCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Preferences" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Help button with ShowHowToUseCommand -->
-                        <Button Style="{StaticResource NavButtonStyle}" Margin="0,2" Command="{Binding ShowHowToUseCommand}">
+                        <Button Style="{DynamicResource NavButtonStyle}" Margin="0,2" Command="{Binding ShowHowToUseCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
-                                    <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
+                                    <Border Width="10" Height="10" Background="{DynamicResource TextSecondaryBrush}" CornerRadius="2"/>
                                 </Border>
                                 <TextBlock Text="Help" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -391,12 +391,12 @@
         </Border>
 
         <!-- Header -->
-        <Border Grid.Column="1" Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Column="1" Grid.Row="0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <Grid Margin="24,0">
-                <TextBlock Text="World of Warcraft Server Manager" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="World of Warcraft Server Manager" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Save Configuration" Style="{StaticResource ButtonStyle}" Command="{Binding SaveConfigCommand}" Margin="8,0"/>
-                    <Button Content="How to Use" Style="{StaticResource ButtonPrimaryStyle}" Command="{Binding ShowHowToUseCommand}" Margin="8,0"/>
+                    <Button Content="Save Configuration" Style="{DynamicResource ButtonStyle}" Command="{Binding SaveConfigCommand}" Margin="8,0"/>
+                    <Button Content="How to Use" Style="{DynamicResource ButtonPrimaryStyle}" Command="{Binding ShowHowToUseCommand}" Margin="8,0"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -404,7 +404,7 @@
         <!-- Main Content -->
         <ScrollViewer Grid.Column="1" Grid.Row="1" Padding="24" Background="{StaticResource BackgroundBrush}">
             <StackPanel>
-                <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,24"/>
+                <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,24"/>
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -417,7 +417,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- Servers Card -->
-                    <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,12,24" Height="360">
+                    <Border Grid.Column="0" Grid.Row="0" Style="{DynamicResource CardStyle}" Margin="0,0,12,24" Height="360">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -425,27 +425,27 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                            <Border Grid.Row="0" Style="{DynamicResource CardHeaderStyle}">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="SERVERS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="SERVERS" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                            <Border Grid.Row="1" Style="{DynamicResource CardContentStyle}">
                                 <ListBox x:Name="ServerListBox" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
-                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
-                                         ItemTemplate="{StaticResource ServerItemTemplate}"/>
+                                         Style="{DynamicResource ModernListBoxStyle}" ItemContainerStyle="{DynamicResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{DynamicResource ServerItemTemplate}"/>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                            <Border Grid.Row="2" Style="{DynamicResource CardFooterStyle}">
                                 <Grid>
-                                    <Button Content="Add Server" Style="{StaticResource ButtonStyle}" Command="{Binding AddServerCommand}" HorizontalAlignment="Left"/>
+                                    <Button Content="Add Server" Style="{DynamicResource ButtonStyle}" Command="{Binding AddServerCommand}" HorizontalAlignment="Left"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditServerCommand}"/>
-                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveServerCommand}"/>
+                                        <Button Content="Edit" Style="{DynamicResource ButtonStyle}" Command="{Binding EditServerCommand}"/>
+                                        <Button Content="Remove" Style="{DynamicResource ButtonStyle}" Command="{Binding RemoveServerCommand}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -453,7 +453,7 @@
                     </Border>
 
                     <!-- Expansions Card -->
-                    <Border Grid.Column="1" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="12,0,0,24" Height="360">
+                    <Border Grid.Column="1" Grid.Row="0" Style="{DynamicResource CardStyle}" Margin="12,0,0,24" Height="360">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -461,27 +461,27 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                            <Border Grid.Row="0" Style="{DynamicResource CardHeaderStyle}">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="EXPANSIONS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="EXPANSIONS" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                            <Border Grid.Row="1" Style="{DynamicResource CardContentStyle}">
                                 <ListBox x:Name="ExpansionListBox" ItemsSource="{Binding Expansions}" SelectedItem="{Binding SelectedExpansion}"
-                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
-                                         ItemTemplate="{StaticResource ExpansionItemTemplate}"/>
+                                         Style="{DynamicResource ModernListBoxStyle}" ItemContainerStyle="{DynamicResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{DynamicResource ExpansionItemTemplate}"/>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                            <Border Grid.Row="2" Style="{DynamicResource CardFooterStyle}">
                                 <Grid>
-                                    <Button Content="Add Expansion" Style="{StaticResource ButtonStyle}" Command="{Binding AddExpansionCommand}" HorizontalAlignment="Left"/>
+                                    <Button Content="Add Expansion" Style="{DynamicResource ButtonStyle}" Command="{Binding AddExpansionCommand}" HorizontalAlignment="Left"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditExpansionCommand}"/>
-                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveExpansionCommand}"/>
+                                        <Button Content="Edit" Style="{DynamicResource ButtonStyle}" Command="{Binding EditExpansionCommand}"/>
+                                        <Button Content="Remove" Style="{DynamicResource ButtonStyle}" Command="{Binding RemoveExpansionCommand}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -489,7 +489,7 @@
                     </Border>
 
                     <!-- Accounts Card -->
-                    <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,12,24" Height="360">
+                    <Border Grid.Column="0" Grid.Row="1" Style="{DynamicResource CardStyle}" Margin="0,0,12,24" Height="360">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -497,27 +497,27 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                            <Border Grid.Row="0" Style="{DynamicResource CardHeaderStyle}">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="ACCOUNTS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="ACCOUNTS" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                            <Border Grid.Row="1" Style="{DynamicResource CardContentStyle}">
                                 <ListBox x:Name="AccountListBox" ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}"
-                                         Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
-                                         ItemTemplate="{StaticResource AccountItemTemplate}"/>
+                                         Style="{DynamicResource ModernListBoxStyle}" ItemContainerStyle="{DynamicResource ModernListBoxItemStyle}"
+                                         ItemTemplate="{DynamicResource AccountItemTemplate}"/>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                            <Border Grid.Row="2" Style="{DynamicResource CardFooterStyle}">
                                 <Grid>
-                                    <Button Content="Add Account" Style="{StaticResource ButtonStyle}" Command="{Binding AddAccountCommand}" HorizontalAlignment="Left"/>
+                                    <Button Content="Add Account" Style="{DynamicResource ButtonStyle}" Command="{Binding AddAccountCommand}" HorizontalAlignment="Left"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditAccountCommand}"/>
-                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveAccountCommand}"/>
+                                        <Button Content="Edit" Style="{DynamicResource ButtonStyle}" Command="{Binding EditAccountCommand}"/>
+                                        <Button Content="Remove" Style="{DynamicResource ButtonStyle}" Command="{Binding RemoveAccountCommand}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -525,7 +525,7 @@
                     </Border>
 
                     <!-- Characters Card -->
-                    <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="12,0,0,24" Height="360">
+                    <Border Grid.Column="1" Grid.Row="1" Style="{DynamicResource CardStyle}" Margin="12,0,0,24" Height="360">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -533,31 +533,31 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Style="{StaticResource CardHeaderStyle}">
+                            <Border Grid.Row="0" Style="{DynamicResource CardHeaderStyle}">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="CHARACTERS" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="CHARACTERS" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="1" Style="{StaticResource CardContentStyle}">
+                            <Border Grid.Row="1" Style="{DynamicResource CardContentStyle}">
                                 <Grid>
                                     <!-- ListBox for Characters -->
                                     <ListBox x:Name="CharacterListBox" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
-                                             Style="{StaticResource ModernListBoxStyle}" ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
-                                             ItemTemplate="{StaticResource CharacterItemTemplate}"/>
+                                             Style="{DynamicResource ModernListBoxStyle}" ItemContainerStyle="{DynamicResource ModernListBoxItemStyle}"
+                                             ItemTemplate="{DynamicResource CharacterItemTemplate}"/>
 
                                     <!-- Disabled Overlay -->
                                     <Border Background="#BB0c0c17" Panel.ZIndex="1">
                                         <Grid>
-                                            <Border Background="{StaticResource PrimaryBrush}" Width="250" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                            <Border Background="{DynamicResource PrimaryBrush}" Width="250" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center" 
                                                     RenderTransformOrigin="0.5,0.5" Panel.ZIndex="2">
                                                 <Border.RenderTransform>
                                                     <RotateTransform Angle="-35"/>
                                                 </Border.RenderTransform>
-                                                <TextBlock Text="DISABLED" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BackgroundBrush}" 
+                                                <TextBlock Text="DISABLED" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BackgroundBrush}" 
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
                                         </Grid>
@@ -565,12 +565,12 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="2" Style="{StaticResource CardFooterStyle}">
+                            <Border Grid.Row="2" Style="{DynamicResource CardFooterStyle}">
                                 <Grid>
-                                    <Button Content="Add Character" Style="{StaticResource ButtonStyle}" Command="{Binding AddCharacterCommand}" HorizontalAlignment="Left"/>
+                                    <Button Content="Add Character" Style="{DynamicResource ButtonStyle}" Command="{Binding AddCharacterCommand}" HorizontalAlignment="Left"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Edit" Style="{StaticResource ButtonStyle}" Command="{Binding EditCharacterCommand}"/>
-                                        <Button Content="Remove" Style="{StaticResource ButtonStyle}" Command="{Binding RemoveCharacterCommand}"/>
+                                        <Button Content="Edit" Style="{DynamicResource ButtonStyle}" Command="{Binding EditCharacterCommand}"/>
+                                        <Button Content="Remove" Style="{DynamicResource ButtonStyle}" Command="{Binding RemoveCharacterCommand}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -581,36 +581,36 @@
         </ScrollViewer>
 
         <!-- Status Bar -->
-        <Border Grid.Column="1" Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Column="1" Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
             <Grid Margin="24,12">
                 <StackPanel Orientation="Horizontal">
                     <StackPanel Margin="0,0,32,0">
-                        <TextBlock Text="SERVER" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                        <TextBlock Text="SERVER" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='None'}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium"/>
                     </StackPanel>
                     <StackPanel Margin="0,0,32,0">
-                        <TextBlock Text="EXPANSION" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                        <TextBlock Text="EXPANSION" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedExpansion.Name, FallbackValue='None'}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium"/>
                     </StackPanel>
                     <StackPanel Margin="0,0,32,0">
-                        <TextBlock Text="ACCOUNT" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Medium"/>
+                        <TextBlock Text="ACCOUNT" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedAccount.Username, FallbackValue='None'}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium"/>
                     </StackPanel>
                 </StackPanel>
 
-                <Button Content="Save Configuration" Style="{StaticResource ButtonStyle}" Command="{Binding SaveConfigCommand}" HorizontalAlignment="Right"/>
+                <Button Content="Save Configuration" Style="{DynamicResource ButtonStyle}" Command="{Binding SaveConfigCommand}" HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 
         <!-- Tools Bar -->
-        <Border Grid.Column="1" Grid.Row="3" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Column="1" Grid.Row="3" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,8">
-                <TextBlock Text="Character Selection Tools:" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <Button Content="Calibrate OCR" Style="{StaticResource SmallButtonStyle}" Command="{Binding CalibrateOcrCommand}" Margin="3,0"/>
-                <Button Content="Test Selection" Style="{StaticResource SmallButtonStyle}" Command="{Binding TestCharacterSelectionCommand}" Margin="3,0"/>
-                <Button Content="OCR Analysis" Style="{StaticResource SmallButtonStyle}" Command="{Binding GetCharacterRecommendationsCommand}" Margin="3,0"/>
-                <Button Content="Debug OCR" Style="{StaticResource SmallButtonStyle}" Command="{Binding VisualizeOcrResultsCommand}" Margin="3,0"/>
-                <Button Content="Overlay Debug" Style="{StaticResource SmallButtonStyle}" Command="{Binding DebugOcrOverlayCommand}" Margin="3,0"/>
+                <TextBlock Text="Character Selection Tools:" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Button Content="Calibrate OCR" Style="{DynamicResource SmallButtonStyle}" Command="{Binding CalibrateOcrCommand}" Margin="3,0"/>
+                <Button Content="Test Selection" Style="{DynamicResource SmallButtonStyle}" Command="{Binding TestCharacterSelectionCommand}" Margin="3,0"/>
+                <Button Content="OCR Analysis" Style="{DynamicResource SmallButtonStyle}" Command="{Binding GetCharacterRecommendationsCommand}" Margin="3,0"/>
+                <Button Content="Debug OCR" Style="{DynamicResource SmallButtonStyle}" Command="{Binding VisualizeOcrResultsCommand}" Margin="3,0"/>
+                <Button Content="Overlay Debug" Style="{DynamicResource SmallButtonStyle}" Command="{Binding DebugOcrOverlayCommand}" Margin="3,0"/>
             </StackPanel>
         </Border>
     </Grid>
