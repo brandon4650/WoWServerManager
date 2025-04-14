@@ -214,7 +214,8 @@ namespace WoWServerManager
                     IsSnapToTickEnabled = true,
                     TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
                     Margin = new Thickness(0, 10, 0, 5),
-                    Width = 300
+                    Width = 300,
+                    Value = _viewModel.UIScale // Explicitly set the initial value
                 };
                 scaleSlider.SetBinding(Slider.ValueProperty,
                     new System.Windows.Data.Binding("UIScale")
@@ -261,6 +262,15 @@ namespace WoWServerManager
 
                 var saveButton = CreateSimplePrimaryButton("Save Settings");
                 saveButton.Command = _viewModel.SaveSettingsCommand;
+                saveButton.Click += (sender, e) => {
+                    _viewModel.SaveSettingsCommand.Execute(null);
+
+                    // Optional: Force a refresh of the main window
+                    if (Application.Current.MainWindow != null)
+                    {
+                        Application.Current.MainWindow.UpdateLayout();
+                    }
+                };
 
                 var resetButton = CreateSimpleButton("Reset to Defaults");
                 resetButton.Command = _viewModel.ResetToDefaultsCommand;
@@ -325,6 +335,17 @@ namespace WoWServerManager
             parent.Children.Add(sectionBorder);
         }
 
+        private void saveButton_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.SaveSettingsCommand.Execute(null);
+
+            // Optional: Force a refresh of the main window
+            if (Application.Current.MainWindow != null)
+            {
+                Application.Current.MainWindow.UpdateLayout();
+            }
+        }
+
         // Helper methods to create simple controls with inline styles
         private ComboBox CreateSimpleComboBox()
         {
@@ -367,6 +388,8 @@ namespace WoWServerManager
             };
             return button;
         }
+
+
 
         private Button CreateSimplePrimaryButton(string content)
         {

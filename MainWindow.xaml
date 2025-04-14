@@ -321,7 +321,7 @@
 
                         <!-- Server navigation button -->
                         <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
-                Command="{Binding ElementName=ServerListBox, Path=Focus}">
+                                Click="OnServerButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
                                     <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
@@ -332,7 +332,7 @@
 
                         <!-- Expansion navigation button -->
                         <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
-                Command="{Binding ElementName=ExpansionListBox, Path=Focus}">
+                                Click="OnExpansionButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
                                     <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
@@ -343,7 +343,7 @@
 
                         <!-- Accounts navigation button -->
                         <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
-                Command="{Binding ElementName=AccountListBox, Path=Focus}">
+                                Click="OnAccountButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
                                     <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>
@@ -354,7 +354,7 @@
 
                         <!-- Characters navigation button -->
                         <Button Style="{StaticResource NavButtonStyle}" Margin="0,2"
-                Command="{Binding ElementName=CharacterListBox, Path=Focus}">
+                                Click="OnCharacterButtonClick">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="20" Height="20" Margin="0,0,12,0" Background="Transparent">
                                     <Border Width="10" Height="10" Background="{StaticResource TextSecondaryBrush}" CornerRadius="2"/>

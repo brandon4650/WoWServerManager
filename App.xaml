@@ -6,11 +6,14 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                
                 <!-- Add this line to include your additional styles -->
                 <ResourceDictionary Source="AdditionalStyles.xaml"/>
+                
 
                 <!-- Your other resource dictionaries if any -->
             </ResourceDictionary.MergedDictionaries>
+            
 
             <!-- Base Theme Colors for Customization -->
             <Color x:Key="ColorBackground">#0c0c17</Color>

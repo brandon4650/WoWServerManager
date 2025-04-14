@@ -25,5 +25,25 @@ namespace WoWServerManager
             InitializeComponent();
             DataContext = new MainViewModel();
         }
+
+        private void OnServerButtonClick(object sender, RoutedEventArgs e)
+        {
+            ServerListBox.Focus();
+        }
+
+        private void OnExpansionButtonClick(object sender, RoutedEventArgs e)
+        {
+            ExpansionListBox.Focus();
+        }
+
+        private void OnAccountButtonClick(object sender, RoutedEventArgs e)
+        {
+            AccountListBox.Focus();
+        }
+
+        private void OnCharacterButtonClick(object sender, RoutedEventArgs e)
+        {
+            CharacterListBox.Focus();
+        }
     }
 }

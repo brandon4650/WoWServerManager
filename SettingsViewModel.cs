@@ -155,7 +155,7 @@ namespace WoWServerManager
                     _uiScale = value;
                     OnPropertyChanged();
                     ApplyUIScale();
-                    MessageBox.Show($"Applied {_selectedTheme.Name} theme", "Settings Applied", MessageBoxButton.OK);
+                    // Remove the MessageBox
                 }
             }
         }
@@ -274,13 +274,50 @@ namespace WoWServerManager
 
         private void ApplyUIScale()
         {
-            // Adjust the scale of the main window
-            if (System.Windows.Application.Current.MainWindow != null)
+            try
             {
-                // Using RenderTransform for scaling
-                ScaleTransform scaleTransform = new ScaleTransform(_uiScale, _uiScale);
-                System.Windows.Application.Current.MainWindow.RenderTransform = scaleTransform;
-                System.Windows.Application.Current.MainWindow.UpdateLayout();
+                // Remove the MessageBox from the UIScale property setter
+                // You can move any logging or notification logic here if needed
+
+                // Instead of directly transforming the window, 
+                // we'll adjust the font size and element sizes based on the scale
+                double scaleFactor = _uiScale;
+
+                // Adjust application-wide resource dictionary
+                var resources = Application.Current.Resources;
+
+                // Scale font sizes
+                if (resources.Contains("ButtonStyle") && resources["ButtonStyle"] is Style buttonStyle)
+                {
+                    foreach (Setter setter in buttonStyle.Setters)
+                    {
+                        if (setter.Property == Control.FontSizeProperty)
+                        {
+                            setter.Value = 12 * scaleFactor;
+                        }
+                    }
+                }
+
+                // You can add similar scaling for other styles like TextBlock, Label, etc.
+
+                // Alternatively, you could use a global font size resource
+                if (resources.Contains("GlobalFontSize"))
+                {
+                    resources["GlobalFontSize"] = 12 * scaleFactor;
+                }
+
+                // Optionally, notify the user about the scale change
+                System.Diagnostics.Debug.WriteLine($"UI Scale set to: {scaleFactor}");
+            }
+            catch (Exception ex)
+            {
+                // Log the error or show a more detailed error message
+                System.Windows.MessageBox.Show(
+                    $"Error applying UI scale: {ex.Message}",
+                    "Scale Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
             }
         }
 
