@@ -155,6 +155,7 @@ namespace WoWServerManager
                     _uiScale = value;
                     OnPropertyChanged();
                     ApplyUIScale();
+                    MessageBox.Show($"Applied {_selectedTheme.Name} theme", "Settings Applied", MessageBoxButton.OK);
                 }
             }
         }
@@ -162,12 +163,12 @@ namespace WoWServerManager
         // Methods to apply changes
         private void ApplyTheme()
         {
-            // Get the application resources
-            var resources = Application.Current.Resources;
-            
+            // Ensure we're modifying the application-wide resources
+            var resources = System.Windows.Application.Current.Resources;
+
             if (_selectedTheme.Key == "DarkTheme")
             {
-                // Apply dark theme values
+                // Dark theme colors
                 resources["ColorBackground"] = (Color)ColorConverter.ConvertFromString("#0c0c17");
                 resources["ColorSurface"] = (Color)ColorConverter.ConvertFromString("#131426");
                 resources["ColorSurfaceRaised"] = (Color)ColorConverter.ConvertFromString("#1a1c36");
@@ -178,7 +179,7 @@ namespace WoWServerManager
             }
             else // Light theme
             {
-                // Apply light theme values
+                // Light theme colors
                 resources["ColorBackground"] = (Color)ColorConverter.ConvertFromString("#f5f7fa");
                 resources["ColorSurface"] = (Color)ColorConverter.ConvertFromString("#ffffff");
                 resources["ColorSurfaceRaised"] = (Color)ColorConverter.ConvertFromString("#f8f9fa");
@@ -187,75 +188,99 @@ namespace WoWServerManager
                 resources["ColorTextSecondary"] = (Color)ColorConverter.ConvertFromString("#495057");
                 resources["ColorTextTertiary"] = (Color)ColorConverter.ConvertFromString("#6c757d");
             }
-            
-            // Update brushes
+
+            // Ensure brushes are updated
             UpdateBrushes();
+
+            // Force all open windows to update their resources
+            foreach (Window window in System.Windows.Application.Current.Windows)
+            {
+                window.Resources = resources;
+                window.UpdateLayout();
+            }
         }
+
 
         private void ApplyAccentColor()
         {
-            // Get the application resources
-            var resources = Application.Current.Resources;
-            
+            var resources = System.Windows.Application.Current.Resources;
+
             // Apply selected accent color
             Color accentColor = (Color)ColorConverter.ConvertFromString(_selectedAccent.ColorValue);
             Color accentDarkColor = AdjustColorBrightness(accentColor, -0.2);
-            
+
             resources["ColorPrimary"] = accentColor;
             resources["ColorPrimaryDark"] = accentDarkColor;
-            
+
             // Update the light version of the primary color
             Color accentLightColor = accentColor;
             accentLightColor.A = 51; // 0.2 opacity (51/255)
             resources["PrimaryLightBrush"] = new SolidColorBrush(accentLightColor);
-            
-            // Update brushes
+
+            // Ensure brushes are updated
             UpdateBrushes();
+
+            // Force all open windows to update their resources
+            foreach (Window window in System.Windows.Application.Current.Windows)
+            {
+                window.Resources = resources;
+                window.UpdateLayout();
+            }
         }
+
 
         private void ApplyFontSize()
         {
-            // Get the application resources
-            var resources = Application.Current.Resources;
-            
+            var resources = System.Windows.Application.Current.Resources;
+
             // Base font sizes
             double baseSize = _selectedFontSize.SizeValue;
-            
+
             // Apply font scaling to styles that contain FontSize
             UpdateFontSizeInStyles(resources, baseSize);
+
+            // Force all open windows to update their resources
+            foreach (Window window in System.Windows.Application.Current.Windows)
+            {
+                window.Resources = resources;
+                window.UpdateLayout();
+            }
         }
 
         private void ApplyLayoutMode()
         {
-            // Get the application resources
-            var resources = Application.Current.Resources;
-            
+            var resources = System.Windows.Application.Current.Resources;
+
             switch (_selectedLayout.Key)
             {
                 case "CardsLayout":
-                    // Default card style already applied
                     resources["ModernListBoxItemStyle"] = resources["CardListBoxItemStyle"];
                     break;
                 case "ListLayout":
-                    // Apply more list-like style with less padding and smaller corner radius
                     resources["ModernListBoxItemStyle"] = resources["BasicListBoxItemStyle"];
                     break;
                 case "CompactLayout":
-                    // Apply compact style with minimal padding and no corner radius
                     resources["ModernListBoxItemStyle"] = resources["CompactListBoxItemStyle"];
                     break;
+            }
+
+            // Force all open windows to update their resources
+            foreach (Window window in System.Windows.Application.Current.Windows)
+            {
+                window.Resources = resources;
+                window.UpdateLayout();
             }
         }
 
         private void ApplyUIScale()
         {
-            // This would be applied to the main window's ScaleTransform
-            if (Application.Current.MainWindow != null)
+            // Adjust the scale of the main window
+            if (System.Windows.Application.Current.MainWindow != null)
             {
-                // Access the main window's scale transform and update
-                // Note: ScaleTransform must be set up on the MainWindow to use this
-                // This is a simplified example
-                // MainWindow.RootGrid.LayoutTransform = new ScaleTransform(_uiScale, _uiScale);
+                // Using RenderTransform for scaling
+                ScaleTransform scaleTransform = new ScaleTransform(_uiScale, _uiScale);
+                System.Windows.Application.Current.MainWindow.RenderTransform = scaleTransform;
+                System.Windows.Application.Current.MainWindow.UpdateLayout();
             }
         }
 
@@ -318,17 +343,24 @@ namespace WoWServerManager
                     LayoutKey = _selectedLayout.Key,
                     UIScale = _uiScale
                 };
-                
+
                 var directory = Path.GetDirectoryName(_settingsFilePath);
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
-                
+
                 var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(_settingsFilePath, json);
-                
-                System.Windows.MessageBox.Show("Settings saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Apply the settings immediately after saving
+                ApplyTheme();
+                ApplyAccentColor();
+                ApplyFontSize();
+                ApplyLayoutMode();
+                ApplyUIScale();
+
+                System.Windows.MessageBox.Show("Settings saved and applied successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
